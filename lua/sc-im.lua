@@ -10,13 +10,13 @@ local config = {
 local sc_file_link_pattern = "%[(.+)%]%((.+)%)"
 
 
-local function generate_uuid()
+local function generate_random_file_name()
     math.randomseed(os.time())
     local random = math.random
     local template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
     return string.gsub(template, '[xy]', function(c)
         local v = (c == 'x') and random(0, 0xf) or random(8, 0xb)
-        return string.format('%x', v)
+        return string.format('%x', v) .. '.sc'
     end)
 end
 
@@ -103,9 +103,8 @@ local function open_in_scim(effective_config)
     local _, sc_file_path = string.match(line_below_table, sc_file_link_pattern)
 
     local temp_file_base = vim.fn.tempname()
-    local sc_file_base = buffer_dir .. generate_uuid() .. '.sc'
     local md_file = temp_file_base .. '.md'
-    local sc_file = sc_file_path or sc_file_base
+    local sc_file = sc_file_path or generate_random_file_name()
     local sc_file_absolute = sc_file
 
     if not is_absolute_path(sc_file) then
