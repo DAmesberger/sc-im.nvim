@@ -45,6 +45,16 @@ local function read_from_scim(table_top_line, table_bottom_line, md_file, sc_fil
     end
 end
 
+-- Function to check if a path is absolute
+local function is_absolute_path(path)
+    if path:sub(1, 1) == "/" then          -- Unix-like absolute path
+        return true
+    elseif path:match("^[A-Za-z]:\\") then -- Windows absolute path
+        return true
+    end
+    return false
+end
+
 -- Internal function to open the current table in sc-im
 local function open_in_scim(effective_config)
     local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
@@ -89,27 +99,33 @@ local function open_in_scim(effective_config)
 
     -- Check the line below the table for an .sc file link
     local line_below_table = vim.api.nvim_buf_get_lines(0, table_bottom_line + 1, table_bottom_line + 2, false)[1] or ""
-
+    local buffer_dir = vim.fn.expand('%:p:h') .. '/'
     local _, sc_file_path = string.match(line_below_table, sc_file_link_pattern)
 
     local temp_file_base = vim.fn.tempname()
-    local sc_file_base = vim.fn.expand('%:p:h') .. '/' .. generate_uuid() .. '.sc'
+    local sc_file_base = buffer_dir .. generate_uuid() .. '.sc'
     local md_file = temp_file_base .. '.md'
     local sc_file = sc_file_path or sc_file_base
+    local sc_file_absolute = sc_file
+
+    if not is_absolute_path(sc_file) then
+        sc_file_absolute = buffer_dir .. "/" .. sc_file
+    end
+
     local scim_command
     local sc_to_md_command = 'echo "EXECUTE \\"load ' ..
-        sc_file:gsub('"', '\\"') ..
+        sc_file_absolute:gsub('"', '\\"') ..
         '\\"\nEXECUTE \\"w! ' .. md_file:gsub('"', '\\"') .. '\\"" | sc-im --nocurses --quit_afterload'
 
     if not sc_file_path and effective_config.include_sc_file then
         -- No existing .sc file link found, create it from markdown
         vim.fn.writefile(file_lines, md_file)
         local script = 'EXECUTE "load ' ..
-            md_file:gsub('"', '\\"') .. '"\nEXECUTE "w! ' .. sc_file:gsub('"', '\\"') .. '"\n'
+            md_file:gsub('"', '\\"') .. '"\nEXECUTE "w! ' .. sc_file_absolute:gsub('"', '\\"') .. '"\n'
         scim_command = 'echo "' .. script:gsub('"', '\\"') .. '" | sc-im'
     else
         -- Existing .sc file link found, use it
-        scim_command = 'sc-im ' .. sc_file:gsub('"', '\\"')
+        scim_command = 'sc-im ' .. sc_file_absolute:gsub('"', '\\"')
     end
 
 
