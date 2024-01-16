@@ -54,7 +54,7 @@ git clone https://github.com/DAmesberger/sc-im.vim.git
 
 ```vim
 lua << EOF
-require'sc-im.vim'.setup({
+require'sc-im'.setup({
     include_sc_file = true,     -- Whether to include .sc file links
     link_text = "Open .sc file" -- Custom text for .sc file links
 })
@@ -68,38 +68,23 @@ EOF
 Navigate to a line in a markdown file with an `sc-im` table and use the configured key mapping or command:
 
 ```vim
-nnoremap <leader>sc :lua require'sc-im.vim'.OpenInScim()<CR>
+nnoremap <leader>sc :lua require'sc-im.vim'.open_in_scim()<CR>
 ```
 
-### Inserting a New `sc-im` Table
-
-Place the cursor where you want a new table and use:
-
-```vim
-:lua require'sc-im.vim'.InsertNewScimTable({})
-```
-
-Or set a key mapping for convenience:
-
-```vim
-
-```vim
-nnoremap <leader>nc :lua require'sc-im.vim'.InsertNewScimTable({})<CR>
-```
 
 ### Overriding Configuration for a Single Use
 
-To override the global configuration for a single use, pass a configuration table to `OpenInScim`:
+To override the global configuration for a single use, pass a configuration table to `open_in_scim`:
 
 ```vim
-:lua require'sc-im.vim'.OpenInScim({include_sc_file = false, link_text = "View .sc file"})
+:lua require'sc-im'.open_in_scim({include_sc_file = false, link_text = "View .sc file"})
 ```
 
 ## Examples
 
 ### Opening an `sc-im` Table
 
-1. In a markdown file, move the cursor over a line containing an `sc-im` table.
+1. In a markdown file, move the cursor over a line containing an `Markdown` table.
 2. Press the key mapping (e.g., `<leader>sc`) to open the table in `sc-im`.
 
 ### Inserting a New Table

@@ -153,7 +153,7 @@ function M.setup(user_config)
 end
 
 -- Public function to open in sc-im
-function OpenInScim(override_config)
+function M.open_in_scim(override_config)
     -- Merge the default config with any overrides
     local effective_config = {}
     for key, value in pairs(config) do
@@ -167,9 +167,3 @@ function OpenInScim(override_config)
 
     open_in_scim(effective_config)
 end
-
-return setmetatable(M, {
-    __index = function(_, k)
-        -- You can use this to expose internal state or functions if needed
-    end,
-})
