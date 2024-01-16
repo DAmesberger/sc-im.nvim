@@ -1,4 +1,4 @@
-local scim = {}
+local M = {}
 
 -- Configuration options
 local config = {
@@ -145,7 +145,7 @@ local function open_in_scim(effective_config)
 end
 
 -- Public function to setup the plugin
-function scim.setup(user_config)
+function M.setup(user_config)
     -- Update configuration with user settings
     for k, v in pairs(user_config or {}) do
         config[k] = v
@@ -153,7 +153,7 @@ function scim.setup(user_config)
 end
 
 -- Public function to open in sc-im
-function scim.OpenInScim(override_config)
+function OpenInScim(override_config)
     -- Merge the default config with any overrides
     local effective_config = {}
     for key, value in pairs(config) do
@@ -168,4 +168,8 @@ function scim.OpenInScim(override_config)
     open_in_scim(effective_config)
 end
 
-return scim
+return setmetatable(M, {
+    __index = function(_, k)
+        -- You can use this to expose internal state or functions if needed
+    end,
+})
