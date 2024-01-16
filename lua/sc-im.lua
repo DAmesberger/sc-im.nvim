@@ -2,8 +2,9 @@ local M = {}
 
 -- Configuration options
 local config = {
-    include_sc_file = false, -- Do not include .sc file by default
-    link_text = "sc file"
+    include_sc_file = false,
+    link_text = "sc file",
+    split = "horizontal"
 }
 
 local sc_file_link_pattern = "%[(.+)%]%((.+)%)"
@@ -119,7 +120,12 @@ local function open_in_scim(effective_config)
     local term_bufnr = vim.api.nvim_create_buf(true, false)
 
     -- Open a new split and switch to the terminal buffer
-    vim.cmd('vsplit')
+    if effective_config.split == "vertical" then
+        vim.cmd('vsplit')
+    else
+        vim.cmd('split')
+    end
+
     vim.api.nvim_win_set_buf(0, term_bufnr)
 
     -- Run the sc-im command in the new buffer

@@ -11,6 +11,8 @@
 
 ## Installation
 
+First make sure that you have installed [sc-im](https://github.com/andmarti1424/sc-im) and it is available in your path.
+
 You can install `sc-im.vim` using various plugin managers for Neovim. Below are examples for some common plugin managers:
 
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
@@ -63,12 +65,12 @@ EOF
 
 ## Usage
 
-### Opening an Existing `sc-im` Table
+### Opening an Existing Markdown Table
 
-Navigate to a line in a markdown file with an `sc-im` table and use the configured key mapping or command:
+Navigate to a line in a markdown file with a Markdown table and use the configured key mapping or command:
 
 ```vim
-nnoremap <leader>sc :lua require'sc-im.vim'.open_in_scim()<CR>
+nnoremap <leader>sc :lua require'sc-im'.open_in_scim()<CR>
 ```
 
 
@@ -77,12 +79,12 @@ nnoremap <leader>sc :lua require'sc-im.vim'.open_in_scim()<CR>
 To override the global configuration for a single use, pass a configuration table to `open_in_scim`:
 
 ```vim
-:lua require'sc-im'.open_in_scim({include_sc_file = false, link_text = "View .sc file"})
+:lua require'sc-im'.open_in_scim({include_sc_file = true, link_text = "sc file"})
 ```
 
 ## Examples
 
-### Opening an `sc-im` Table
+### Opening an Markdown Table
 
 1. In a markdown file, move the cursor over a line containing an `Markdown` table.
 2. Press the key mapping (e.g., `<leader>sc`) to open the table in `sc-im`.
