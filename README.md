@@ -1,15 +1,16 @@
 
 # sc-im.nvim - Edit Markdown tables in sc-im
 
-`sc-im.nvim` is a Neovim plugin designed to seamlessly integrate `sc-im`, a terminal spreadsheet program, to edit Markdown tables. 
+`sc-im.nvim` is a Neovim plugin designed to seamlessly integrate with [sc-im](https://github.com/andmarti1424/sc-im), a terminal spreadsheet calculator, to edit Markdown tables. 
 Its core feature is that it can generate and link the native sc file to the Markdown table. That allows to retain formatting and formulas upon reopening (see Options).
+
 
 ![table editing](./table.svg)
 ## Features
 
-- Open existing `sc-im` tables in a split window.
-- Insert new `sc-im` tables at the current cursor position.
-- Configurable to include `.sc` file links and customizable link text.
+- Create or open markdown tables in `sc-im` using a split terminal buffer (can be configured to open in a vertical or horizontal split).
+- Optionally generates and links the `.sc` file (native sc-im file format) so that formatting and formulas are retained below the table in the markdown file.
+
 
 ## Installation
 
@@ -119,6 +120,11 @@ To override the global configuration for a single use, pass a configuration tabl
 
 1. Place the cursor at the desired location for a new table.
 2. Press the key mapping for inserting a new table (e.g., `<leader>nc`).
+
+### Using include_sc_file with Joplin Notes
+If you use Neovim as your external editor, there is currently no way of letting Joplin automatically know that you created a link as far as I know. So in order to have the .sc file in your notes, you have to attach the file manually to the Joplin note. This creates a link. Replace the link created by sc-im.nvim with the new one, and remove the file of the old link.
+You only have to do this once per table, after that the sc file will be synced and you can edit the table normally as expected.
+
 
 ## Contribution
 
