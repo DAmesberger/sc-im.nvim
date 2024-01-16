@@ -3,6 +3,7 @@
 
 `sc-im.vim` is a Neovim plugin designed to seamlessly integrate `sc-im`, a terminal spreadsheet program to edit Markdown tables. It allows users to edit and insert `sc-im` tables directly within Neovim, enhancing the editing experience for Markdown files or other documents where `sc-im` tables are used.
 
+![table editing](./table.svg)
 ## Features
 
 - Open existing `sc-im` tables in a split window.
