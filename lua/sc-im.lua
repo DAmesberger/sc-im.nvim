@@ -167,3 +167,9 @@ function M.open_in_scim(override_config)
 
     open_in_scim(effective_config)
 end
+
+return setmetatable(M, {
+    __index = function(_, k)
+        -- You can use this to expose internal state or functions if needed
+    end,
+})
