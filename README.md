@@ -1,7 +1,8 @@
 
-# sc-im.vim - Neovim Plugin for sc-im Integration
+# sc-im.nvim - Edit Markdown tables in sc-im
 
-`sc-im.vim` is a Neovim plugin designed to seamlessly integrate `sc-im`, a terminal spreadsheet program to edit Markdown tables. It allows users to edit and insert `sc-im` tables directly within Neovim, enhancing the editing experience for Markdown files or other documents where `sc-im` tables are used.
+`sc-im.nvim` is a Neovim plugin designed to seamlessly integrate `sc-im`, a terminal spreadsheet program, to edit Markdown tables. 
+Its core feature is that it can generate and link the native sc file to the Markdown table. That allows to retain formatting and formulas upon reopening (see Options).
 
 ![table editing](./table.svg)
 ## Features
@@ -21,7 +22,7 @@ You can install `sc-im.vim` using various plugin managers for Neovim. Below are 
 Add the following line to your `init.vim`:
 
 ```vim
-Plug 'DAmesberger/sc-im.vim'
+Plug 'DAmesberger/sc-im.nvim'
 ```
 
 Then run `:PlugInstall` in Neovim.
@@ -31,7 +32,7 @@ Then run `:PlugInstall` in Neovim.
 Add the following Lua code to your Neovim configuration:
 
 ```lua
-use 'DAmesberger/sc-im.vim'
+use 'DAmesberger/sc-im.nvim'
 ```
 
 ### Using [dein.vim](https://github.com/Shougo/dein.vim)
@@ -39,7 +40,7 @@ use 'DAmesberger/sc-im.vim'
 Add the following line to your `init.vim`:
 
 ```vim
-call dein#add('DAmesberger/sc-im.vim')
+call dein#add('DAmesberger/sc-im.nvim')
 ```
 
 ### Using [Pathogen](https://github.com/tpope/vim-pathogen)
@@ -48,27 +49,51 @@ Clone the repository into your `~/.config/nvim/bundle` directory:
 
 ```sh
 cd ~/.config/nvim/bundle
-git clone https://github.com/DAmesberger/sc-im.vim.git
+git clone https://github.com/DAmesberger/sc-im.nvim.git
 ```
 
 ## Configuration
 
-`sc-im.vim` can be configured in your `init.vim` or Lua configuration file. Here is an example:
+`sc-im.nvim` can be configured in your `init.vim` or Lua configuration file. Here is an example:
 
+## Options
+### `include_sc_file` 
+can be set to true to automatically add a link to the sc file (sc-ims native file format) to retain formatting and formulas upon reopening.
+
+> :warning: This generates a file with a random file name in the same file location as your markdown file you are editing in nvim and links it to your document. Thats why this feature is turned off by default
+
+### `link_text`
+
+Link text used when `include_sc_file` is enabled. Defaults to `sc file`
+
+### `split`
+
+Defines the split direction when opening `sc-im`. Default is `horizontal`. Can be `horizontal` or `vertical`
+### Vimscript Configuration
 ```vim
 lua << EOF
 require'sc-im'.setup({
-    include_sc_file = true,     -- Whether to include .sc file links
-    link_text = "Open .sc file" -- Custom text for .sc file links
+    include_sc_file = true,     -- Whether to include .sc file links, default is false
+    link_text = ".sc file", -- Custom text for .sc file links
+    split = "horizontal"
 })
 EOF
 ```
+### Lua Configuration
+
+```lua
+require('sc-im').setup({
+    include_sc_file = true,     -- Whether to include .sc file links, default is false
+    link_text = ".sc file",      -- Custom text for .sc file links
+    split = "horizontal"
+})
+```
+
 
 ## Usage
 
-### Opening an Existing Markdown Table
+### Mapping to a shortcut
 
-Navigate to a line in a markdown file with a Markdown table and use the configured key mapping or command:
 
 ```vim
 nnoremap <leader>sc :lua require'sc-im'.open_in_scim()<CR>
@@ -88,7 +113,7 @@ To override the global configuration for a single use, pass a configuration tabl
 ### Opening an Markdown Table
 
 1. In a markdown file, move the cursor over a line containing an `Markdown` table.
-2. Press the key mapping (e.g., `<leader>sc`) to open the table in `sc-im`.
+2. Press the key mapping (e.g., `<leader>sc`) or enter the command directly (`:lua require'sc-im'.open_in_scim()`) to open the table in `sc-im`.
 
 ### Inserting a New Table
 
@@ -97,4 +122,4 @@ To override the global configuration for a single use, pass a configuration tabl
 
 ## Contribution
 
-Contributions to `sc-im.vim` are welcome. Open an issue or pull request on the repository for any bugs, suggestions, or improvements.
+Contributions to `sc-im.nvim` are welcome. Open an issue or pull request on the repository for any bugs, suggestions, or improvements.
