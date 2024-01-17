@@ -1,3 +1,6 @@
+local A = vim.api
+
+--
 ---@alias WinId number Floating Window's ID
 
 ---@class Table
@@ -10,6 +13,8 @@ local Table = {}
 ---@field width number: Width of the floating window (default: `0.8`)
 ---@field style string: default 'minimal'
 ---@field border string: defalut'single'
+---@field hl string: Highlight group for the terminal buffer (default: `Normal`)
+---@field blend number: Transparency of the floating window (default: `true`)
 
 ---@class Config
 ---@field include_sc_file boolean: if true, the sc file is linked below the table (default: true)
@@ -27,6 +32,7 @@ local defaults = {
         width = 0.9,
         style = 'minimal',
         border = 'single',
+        hl = 'Normal',
         blend = 0
     }
 }
@@ -91,7 +97,7 @@ end
 
 -- Function to find the start and end line numbers of the table
 function Table:find_table_boundaries(cursor_line)
-    local line_content = vim.api.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
+    local line_content = A.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
     local table_top_line = nil
 
     -- Find the top line of the table
@@ -99,7 +105,7 @@ function Table:find_table_boundaries(cursor_line)
         cursor_line = cursor_line - 1
         table_top_line = cursor_line + 1
         if cursor_line > 0 then
-            line_content = vim.api.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
+            line_content = A.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
         end
     end
 
@@ -110,7 +116,7 @@ function Table:find_table_boundaries(cursor_line)
     -- Find the bottom line of the table
     local table_bottom_line = table_top_line
     while true do
-        local lines = vim.api.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)
+        local lines = A.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)
         if #lines == 0 or not string.match(lines[1], "|.*|$") then
             break
         end
@@ -126,7 +132,7 @@ function Table:get_table_lines(table_top_line, table_bottom_line)
         return nil -- Invalid input
     end
 
-    local table_lines = vim.api.nvim_buf_get_lines(0, table_top_line - 1, table_bottom_line, false)
+    local table_lines = A.nvim_buf_get_lines(0, table_top_line - 1, table_bottom_line, false)
     return table_lines
 end
 
@@ -146,7 +152,7 @@ function Table:get_sc_file_from_link(table_bottom_line)
         return nil, nil -- Invalid input
     end
 
-    local sc_link_line = vim.api.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)[1] or ""
+    local sc_link_line = A.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)[1] or ""
 
     return self:extract_sc_link(sc_link_line)
 end
@@ -158,21 +164,21 @@ function Table:read_from_scim(table_top_line, table_bottom_line, md_file, sc_fil
 
     -- Determine the range of lines to replace, excluding the old .sc file link
     local end_line = table_bottom_line
-    local next_line = vim.api.nvim_buf_get_lines(0, end_line, end_line + 1, false)[1] or ""
+    local next_line = A.nvim_buf_get_lines(0, end_line, end_line + 1, false)[1] or ""
     if next_line:match(sc_file_link_pattern) then
         -- If the next line is an .sc file link, exclude it from the replacement range
         end_line = end_line - 1
     end
 
     -- Replace the old table content in the buffer, excluding the .sc file link
-    vim.api.nvim_buf_set_lines(0, table_top_line - 1, end_line + 1, false, md_content)
+    A.nvim_buf_set_lines(0, table_top_line - 1, end_line + 1, false, md_content)
 
     -- If .sc file should be included, handle the .sc file link
     if self.config.include_sc_file then
         local sc_link_line = table_top_line - 1 + #md_content
         local sc_link = "[" .. self.config.link_text .. "](" .. sc_file .. ")"
         -- Replace or add the .sc file link
-        vim.api.nvim_buf_set_lines(0, sc_link_line, sc_link_line + 1, false, { sc_link })
+        A.nvim_buf_set_lines(0, sc_link_line, sc_link_line + 1, false, { sc_link })
     end
 end
 
@@ -188,7 +194,7 @@ end
 
 -- Internal function to open the current table in sc-im
 function Table:open_in_scim()
-    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+    local cursor_line = A.nvim_win_get_cursor(0)[1]
     local table_top_line, table_bottom_line = self:find_table_boundaries(cursor_line)
 
     -- If no table is found, do not proceed
@@ -242,7 +248,8 @@ function Table:open_in_scim()
         local win_config = self:get_float_config()
         local float_win = vim.api.nvim_open_win(0, true, win_config)
         -- Set winhighlight to use the Normal highlight group
-        vim.api.nvim_win_set_option(float_win, 'winhighlight', 'Normal:Normal')
+        A.nvim_win_set_option(float_win, 'winhl', ('Normal:%s'):format(self.config.float_config.hl))
+        A.nvim_win_set_option(float_win, 'winblend', self.config.float_config.blend)
     else
         vim.cmd('split')
     end
