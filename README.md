@@ -16,7 +16,7 @@ Its core feature is that it can generate and link the native sc file to the Mark
 
 First make sure that you have installed [sc-im](https://github.com/andmarti1424/sc-im) and it is available in your path.
 
-You can install `sc-im.vim` using various plugin managers for Neovim. Below are examples for some common plugin managers:
+You can install `sc-im.nvim` using various plugin managers for Neovim. Below are examples for some common plugin managers:
 
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
@@ -69,14 +69,20 @@ Link text used when `include_sc_file` is enabled. Defaults to `sc file`
 
 ### `split`
 
-Defines the split direction when opening `sc-im`. Default is `horizontal`. Can be `horizontal` or `vertical`
+Defines the split direction when opening `sc-im`. Default is `floating`. Can be `floating`, `horizontal` or `vertical`
 ### Vimscript Configuration
 ```vim
 lua << EOF
 require'sc-im'.setup({
     include_sc_file = true,     -- Whether to include .sc file links, default is false
     link_text = ".sc file", -- Custom text for .sc file links
-    split = "horizontal"
+    split = "floating",
+    float_config = {
+        width = 0.8,
+        height = 0.8,
+        style = 'minimal',
+        border = 'single',
+    }
 })
 EOF
 ```
@@ -86,7 +92,13 @@ EOF
 require('sc-im').setup({
     include_sc_file = true,     -- Whether to include .sc file links, default is false
     link_text = ".sc file",      -- Custom text for .sc file links
-    split = "horizontal"
+    split = "floating",
+    float_config = {
+        width = 0.8,
+        height = 0.8,
+        style = 'minimal',
+        border = 'single',
+    }
 })
 ```
 
