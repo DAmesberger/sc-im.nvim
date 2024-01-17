@@ -93,5 +93,4 @@ M.setup({
 -- Register sc-im on the runtimepath, base_root_path is the directory where this file exists
 vim.opt.runtimepath:prepend(vim.fn.fnamemodify(base_root_path, ':h'))
 
-require('sc-im').setup({
-})
+-- require('sc-im').setup({ })
