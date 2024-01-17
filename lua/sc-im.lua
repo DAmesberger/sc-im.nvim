@@ -202,6 +202,8 @@ local function open_in_scim(effective_config)
     elseif effective_config.split == "floating" then
         local win_config = convert_float_config(effective_config.float_config)
         local float_win = vim.api.nvim_open_win(0, true, win_config)
+        -- Set winhighlight to use the Normal highlight group
+        vim.api.nvim_win_set_option(float_win, 'winhighlight', 'Normal:Normal')
     else
         vim.cmd('split')
     end
