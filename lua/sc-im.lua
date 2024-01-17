@@ -4,7 +4,16 @@ local M = {}
 local config = {
     include_sc_file = false,
     link_text = "sc file",
-    split = "horizontal"
+    split = "horizontal",
+    float_config = {
+        relative = 'editor',
+        width = 0.8,
+        height = 0.8,
+        row = 1,
+        col = 1,
+        style = 'minimal',
+        border = 'single',
+    }
 }
 
 local sc_file_link_pattern = "%[(.+)%]%((.+)%)"
@@ -18,6 +27,67 @@ local function generate_random_file_name()
         local v = (c == 'x') and random(0, 0xf) or random(8, 0xb)
         return string.format('%x', v)
     end) .. '.sc'
+end
+
+-- Function to find the start and end line numbers of the table
+local function find_table_boundaries(cursor_line)
+    local line_content = vim.api.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
+    local table_top_line = nil
+
+    -- Find the top line of the table
+    while cursor_line > 0 and string.match(line_content, "|.*|$") do
+        cursor_line = cursor_line - 1
+        table_top_line = cursor_line + 1
+        if cursor_line > 0 then
+            line_content = vim.api.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
+        end
+    end
+
+    if not table_top_line then
+        return nil, nil -- No table found
+    end
+
+    -- Find the bottom line of the table
+    local table_bottom_line = table_top_line
+    while true do
+        local lines = vim.api.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)
+        if #lines == 0 or not string.match(lines[1], "|.*|$") then
+            break
+        end
+        table_bottom_line = table_bottom_line + 1
+    end
+
+    return table_top_line, table_bottom_line
+end
+
+-- Function to get the lines of a markdown table as a lua table
+local function get_table_lines(table_top_line, table_bottom_line)
+    if not table_top_line or not table_bottom_line then
+        return nil -- Invalid input
+    end
+
+    local table_lines = vim.api.nvim_buf_get_lines(0, table_top_line - 1, table_bottom_line, false)
+    return table_lines
+end
+
+-- Function to extract .sc name and link from a line
+local function extract_sc_link(line)
+    if not line then
+        return nil, nil -- Invalid input
+    end
+
+    local name, file = line:match(sc_file_link_pattern)
+    return name, file
+end
+
+-- Function to get the .sc file link from the line below the last line of the table
+local function get_sc_file_from_link(table_bottom_line)
+    if not table_bottom_line then
+        return nil, nil -- Invalid input
+    end
+
+    local sc_link_line = vim.api.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)[1] or ""
+    return extract_sc_link(sc_link_line)
 end
 
 -- Internal function to read data back from sc-im
@@ -57,51 +127,21 @@ end
 
 -- Internal function to open the current table in sc-im
 local function open_in_scim(effective_config)
-    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-    local line_content = vim.api.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
-
-    -- Initialize table_top_line as nil
-    local table_top_line = nil
-
-    -- Find the top line of the table
-    while cursor_line > 0 and string.match(line_content, "|.*|$") do
-        cursor_line = cursor_line - 1
-        table_top_line = cursor_line + 1
-        if cursor_line > 0 then
-            line_content = vim.api.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
-        end
-    end
+    local table_top_line, table_bottom_line = find_table_boundaries(vim.api.nvim_win_get_cursor(0)[1])
 
     -- If no table is found, do not proceed
-    if not table_top_line then
+    if not table_top_line or not table_bottom_line then
         print("No table found under the cursor, creating new one.")
         table_top_line = cursor_line
     end
 
-    local file_lines = {}
-    cursor_line = table_top_line
-
-    -- Collect table lines
-    while true do
-        local lines = vim.api.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)
-        if #lines == 0 then
-            break -- Exit the loop if there are no more lines
-        end
-        line_content = lines[1]
-        if not string.match(line_content, "|.*|$") then
-            break -- Exit the loop if the line does not match the table pattern
-        end
-        table.insert(file_lines, line_content)
-        cursor_line = cursor_line + 1
-    end
-
-    local table_bottom_line = cursor_line - 2
+    local file_lines = get_table_lines(table_top_line, table_bottom_line)
 
     -- Check the line below the table for an .sc file link
-    local line_below_table = vim.api.nvim_buf_get_lines(0, table_bottom_line + 1, table_bottom_line + 2, false)[1] or ""
-    local buffer_dir = vim.fn.expand('%:p:h') .. '/'
-    local _, sc_file_path = string.match(line_below_table, sc_file_link_pattern)
+    local sc_name, sc_file_path = get_sc_file_from_link(table_bottom_line)
 
+    -- files
+    local buffer_dir = vim.fn.expand('%:p:h') .. '/'
     local temp_file_base = vim.fn.tempname()
     local md_file = temp_file_base .. '.md'
     local sc_file = sc_file_path or generate_random_file_name()
@@ -137,6 +177,8 @@ local function open_in_scim(effective_config)
     -- Open a new split and switch to the terminal buffer
     if effective_config.split == "vertical" then
         vim.cmd('vsplit')
+    elseif effective_config.split == "floating" then
+        local float_win = vim.api.nvim_open_win(0, true, effective_config.float_config)
     else
         vim.cmd('split')
     end
@@ -187,6 +229,15 @@ function M.open_in_scim(override_config)
     end
 
     open_in_scim(effective_config)
+end
+
+-- testing interface
+function M._testing_interface()
+    return {
+        find_table_boundaries = find_table_boundaries,
+        get_sc_file_from_link = get_sc_file_from_link,
+        get_table_lines = get_table_lines,
+    }
 end
 
 return setmetatable(M, {
