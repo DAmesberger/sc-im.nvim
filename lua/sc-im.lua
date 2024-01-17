@@ -4,13 +4,10 @@ local M = {}
 local config = {
     include_sc_file = false,
     link_text = "sc file",
-    split = "horizontal",
+    split = "floating",
     float_config = {
-        relative = 'editor',
         width = 0.8,
         height = 0.8,
-        row = 1,
-        col = 1,
         style = 'minimal',
         border = 'single',
     }
@@ -18,6 +15,31 @@ local config = {
 
 local sc_file_link_pattern = "%[(.+)%]%((.+)%)"
 
+local function convert_float_config(float_config)
+    local columns = vim.o.columns
+    local lines = vim.o.lines
+
+    local width = float_config.width
+    local height = float_config.height
+
+    if width < 1 then
+        width = math.floor(columns * width)
+    end
+
+    if height < 1 then
+        height = math.floor(lines * height)
+    end
+
+    return {
+        relative = 'editor',
+        width = width,
+        height = height,
+        col = math.min((vim.o.columns - width) / 2),
+        row = math.min((vim.o.lines - height) / 2 - 1),
+        style = float_config.style or 'minimal',
+        border = float_config.border or 'single',
+    }
+end
 
 local function generate_random_file_name()
     math.randomseed(os.time())
@@ -178,7 +200,8 @@ local function open_in_scim(effective_config)
     if effective_config.split == "vertical" then
         vim.cmd('vsplit')
     elseif effective_config.split == "floating" then
-        local float_win = vim.api.nvim_open_win(0, true, effective_config.float_config)
+        local win_config = convert_float_config(effective_config.float_config)
+        local float_win = vim.api.nvim_open_win(0, true, win_config)
     else
         vim.cmd('split')
     end
