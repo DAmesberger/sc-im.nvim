@@ -1,3 +1,4 @@
+tests/.deps
 # Compiled Lua sources
 luac.out
 
