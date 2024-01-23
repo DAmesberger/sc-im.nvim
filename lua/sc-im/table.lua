@@ -202,6 +202,7 @@ function Table:open_in_scim()
     if not table_top_line or not table_bottom_line then
         print("No table found under the cursor, creating new one.")
         table_top_line = cursor_line
+        table_bottom_line = cursor_line
     else
         file_lines = self:get_table_lines(table_top_line, table_bottom_line)
     end
