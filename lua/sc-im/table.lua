@@ -194,6 +194,7 @@ end
 
 -- Internal function to open the current table in sc-im
 function Table:open_in_scim()
+    local file_lines = {}
     local cursor_line = A.nvim_win_get_cursor(0)[1]
     local table_top_line, table_bottom_line = self:find_table_boundaries(cursor_line)
 
@@ -201,9 +202,10 @@ function Table:open_in_scim()
     if not table_top_line or not table_bottom_line then
         print("No table found under the cursor, creating new one.")
         table_top_line = cursor_line
+    else
+        file_lines = self:get_table_lines(table_top_line, table_bottom_line)
     end
 
-    local file_lines = self:get_table_lines(table_top_line, table_bottom_line)
 
     -- Check the line below the table for an .sc file link
     local _, sc_file_path = self:get_sc_file_from_link(table_bottom_line)
