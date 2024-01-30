@@ -235,6 +235,16 @@ function Table:rename_table_file(new_name)
     if not sc_link_name or not sc_file_path then
         return vim.notify('No table link found', vim.log.levels.INFO)
     end
+    --
+    -- If new_name is nil, prompt for input
+    if new_name == nil then
+        new_name = vim.fn.input('New name: ', sc_file_path or '')
+    end
+
+    -- Check if the user has provided a new name
+    if new_name == '' or new_name == nil then
+        return vim.notify('No new name provided', vim.log.levels.INFO)
+    end
 
     local dir = vim.fn.expand('%:p:h') .. '/'
     local is_absolute = U.is_absolute_path(new_name)
