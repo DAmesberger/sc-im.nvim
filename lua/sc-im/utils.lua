@@ -19,6 +19,20 @@ function U.next_link_fmt(idx)
     end
 end
 
+---Check whether the window is valid
+---@param win number Window ID
+---@return boolean
+function U.is_win_valid(win)
+    return win and vim.api.nvim_win_is_valid(win)
+end
+
+---Check whether the buffer is valid
+---@param buf number Buffer ID
+---@return boolean
+function U.is_buf_valid(buf)
+    return buf and vim.api.nvim_buf_is_loaded(buf)
+end
+
 -- Function to check if a path is absolute
 function U.is_absolute_path(path)
     if path:sub(1, 1) == "/" then          -- Unix-like absolute path
@@ -125,7 +139,7 @@ end
 
 function U.update_sc_link(link_line, link_name, link_file, link_fmt)
     local sc_link = U.create_sc_link(link_fmt, link_name, link_file)
-    A.nvim_buf_set_lines(0, link_line, link_line + 1, false, { sc_link })
+    A.nvim_buf_set_lines(0, link_line, link_line, false, { sc_link })
 end
 
 -- Function to get the .sc file link from the line below the last line of the table

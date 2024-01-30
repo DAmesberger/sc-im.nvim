@@ -118,16 +118,23 @@ require('sc-im').setup({
 
 - `toggle()` - Toggle the sc link format between sc link comment (`<!--[table link](file.sc)-->`) and markdown link (`[table link](file.sc)`)
 
-### Mapping to a shortcut
+### Keybindings
 
+Example keybindings, <leader>sc to open a table in sc-im, <leader>x to close sc-im without saving
+
+### Vimscript
 ```vim
 nnoremap <leader>sc :lua require'sc-im'.open_in_scim()<CR>
+tnoremap <leader>x <C-\><C-n>:lua require('sc-im').close()<CR>
+```
+### Lua
+
+``` lua
+vim.api.nvim_set_keymap('n', '<leader>sc', ":lua require'sc-im'.open_in_scim()<CR>", { noremap = true, silent = true })
+vim.api.nvim_set_keymap('t', '<leader>x', [[<C-\><C-n>:lua require('sc-im').close()<CR>]], { noremap = true, silent = true })
 ```
 
-
-## Examples
-
-### Key Mappings with [which-key](https://github.com/folke/which-key.nvim)
+### [which-key](https://github.com/folke/which-key.nvim)
 ``` lua
 require("which-key").register({
     s = {  
@@ -138,7 +145,12 @@ require("which-key").register({
         r = { ":lua require('sc-im').rename()<cr>", "Rename linked sc-im file" },
     }
 }, { prefix = "<leader>" })
+
+vim.api.nvim_set_keymap('t', '<leader>x', [[<C-\><C-n>:lua require('sc-im').close()<CR>]],
+    { noremap = true, silent = true })
 ```
+
+## Examples
 
 ### Opening an Markdown Table
 

@@ -24,6 +24,7 @@ local Table = {}
 
 ---@type Config
 local defaults = {
+    ft = 'scim',
     include_sc_file = true,
     link_name = "table link",
     link_fmt = 1,
@@ -66,6 +67,7 @@ function Table:new()
     check_sc_im()
     return setmetatable({
         win = nil,
+        buf = nil,
         config = defaults,
     }, { __index = self })
 end
@@ -194,17 +196,27 @@ function Table:open_in_scim(add_link)
     -- Open a new split and switch to the terminal buffer
     if self.config.split == "vertical" then
         vim.cmd('vsplit')
+        vim.api.nvim_win_set_buf(0, term_bufnr)
     elseif self.config.split == "floating" then
         local win_config = self:get_float_config()
-        local float_win = vim.api.nvim_open_win(0, true, win_config)
+        local float_win = vim.api.nvim_open_win(term_bufnr, true, win_config)
         -- Set winhighlight to use the Normal highlight group
         A.nvim_win_set_option(float_win, 'winhl', ('Normal:%s'):format(self.config.float_config.hl))
         A.nvim_win_set_option(float_win, 'winblend', self.config.float_config.blend)
+
+        A.nvim_win_set_option(float_win, 'number', false)
+        A.nvim_win_set_option(float_win, 'relativenumber', false)
+        A.nvim_win_set_option(float_win, 'signcolumn', 'no')
+
+        A.nvim_buf_set_option(term_bufnr, 'filetype', self.config.ft)
+
+        self.win = float_win
+        self.buf = term_bufnr
     else
         vim.cmd('split')
+        vim.api.nvim_win_set_buf(0, term_bufnr)
     end
 
-    vim.api.nvim_win_set_buf(0, term_bufnr)
 
     -- Run the sc-im command in the new buffer
     vim.fn.termopen(scim_command, {
@@ -212,12 +224,17 @@ function Table:open_in_scim(add_link)
             -- Run the scim_command and get its output (if needed)
             local _ = vim.fn.system(sc_to_md_command)
 
+            self.win = nil
+
             --if vim.v.shell_error ~= 0 then
             -- TODO not sure why I get a "No such devices or address" error here
             -- but it seems to work anyway
             -- print("Error: " .. command_output)
             --end
-            vim.api.nvim_buf_delete(term_bufnr, { force = true })
+            if U.is_buf_valid(self.buf) then
+                vim.api.nvim_buf_delete(self.buf, { force = true })
+            end
+            self.buf = nil
 
             self:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, sc_link_name, sc_link_fmt)
         end
@@ -264,6 +281,17 @@ function Table:rename_table_file(new_name)
         else
             U.update_sc_link(sc_link_line, sc_link_name, U.make_relative_path(dir, new_name), sc_link_fmt)
         end
+    end
+end
+
+function Table:close()
+    if self.win and vim.api.nvim_win_is_valid(self.win) then
+        A.nvim_win_close(self.win, {})
+
+        self.win = nil
+    end
+    if self.buf and vim.api.nvim_buf_is_loaded(self.buf) then
+        A.nvim_buf_delete(self.buf, { force = true })
     end
 end
 

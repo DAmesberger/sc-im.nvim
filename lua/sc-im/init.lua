@@ -27,4 +27,9 @@ function M.rename(new_file)
     t:rename_table_file(new_file)
 end
 
+--- closes floating sc-im
+function M.close()
+    t:close()
+end
+
 return M
