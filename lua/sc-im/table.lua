@@ -1,5 +1,5 @@
 local A = vim.api
-
+local U = require('sc-im.utils')
 --
 ---@alias WinId number Floating Window's ID
 
@@ -18,14 +18,15 @@ local Table = {}
 
 ---@class Config
 ---@field include_sc_file boolean: if true, the sc file is linked below the table (default: true)
----@field link_text string: Text used for the sc file link (default: 'sc file')
+---@field link_name string: Text used for the sc file link (default: 'sc file')
 ---@field split string: 'floating', 'vertical', 'horizontal' (default 'floating')
 ---@field float_config FloatConfig: Dimensions of the floating window
 
 ---@type Config
 local defaults = {
     include_sc_file = true,
-    link_text = "sc file",
+    link_name = "table link",
+    link_fmt = 1,
     split = "floating",
     float_config = {
         height = 0.9,
@@ -37,7 +38,32 @@ local defaults = {
     }
 }
 
+local function check_sc_im()
+    -- Check if sc-im is executable
+    if vim.fn.executable('sc-im') == 0 then
+        -- sc-im is not found
+        vim.api.nvim_err_writeln("sc-im is not installed or not in PATH.")
+        return false
+    else
+        -- sc-im is found, try to get its version
+        local version_command = 'sc-im --version'
+        local major, minor, patch = vim.fn.systemlist(version_command)[1]:match(".*version (%d+)%.(%d+)%.(%d+).*")
+
+        if not major or not minor or not patch then
+            vim.api.nvim_err_writeln("Failed to get sc-im version.")
+            return false
+        else
+            if tonumber(major) < 1 and (tonumber(minor) < 8 or tonumber(patch) < 3) then
+                vim.api.nvim_err_writeln("sc-im version 0.8.3 or higher is required.")
+                return false
+            end
+            return true
+        end
+    end
+end
+
 function Table:new()
+    check_sc_im()
     return setmetatable({
         win = nil,
         config = defaults,
@@ -56,8 +82,6 @@ function Table:setup(cfg)
 
     return self
 end
-
-local sc_file_link_pattern = "%[(.+)%]%((.+)%)"
 
 function Table:get_float_config()
     local columns = vim.o.columns
@@ -85,142 +109,56 @@ function Table:get_float_config()
     }
 end
 
-function Table:generate_random_file_name()
-    math.randomseed(os.time())
-    local random = math.random
-    local template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
-    return string.gsub(template, '[xy]', function(c)
-        local v = (c == 'x') and random(0, 0xf) or random(8, 0xb)
-        return string.format('%x', v)
-    end) .. '.sc'
-end
-
--- Function to find the start and end line numbers of the table
-function Table:find_table_boundaries(cursor_line)
-    local line_content = A.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
-    local table_top_line = nil
-
-    -- Find the top line of the table
-    while cursor_line > 0 and string.match(line_content, "|.*|$") do
-        cursor_line = cursor_line - 1
-        table_top_line = cursor_line + 1
-        if cursor_line > 0 then
-            line_content = A.nvim_buf_get_lines(0, cursor_line - 1, cursor_line, false)[1]
-        end
-    end
-
-    if not table_top_line then
-        return nil, nil -- No table found
-    end
-
-    -- Find the bottom line of the table
-    local table_bottom_line = table_top_line
-    while true do
-        local lines = A.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)
-        if #lines == 0 or not string.match(lines[1], "|.*|$") then
-            break
-        end
-        table_bottom_line = table_bottom_line + 1
-    end
-
-    return table_top_line, table_bottom_line
-end
-
--- Function to get the lines of a markdown table as a lua table
-function Table:get_table_lines(table_top_line, table_bottom_line)
-    if not table_top_line or not table_bottom_line then
-        return nil -- Invalid input
-    end
-
-    local table_lines = A.nvim_buf_get_lines(0, table_top_line - 1, table_bottom_line, false)
-    return table_lines
-end
-
--- Function to extract .sc name and link from a line
-function Table:extract_sc_link(line)
-    if not line then
-        return nil, nil -- Invalid input
-    end
-
-    local name, file = line:match(sc_file_link_pattern)
-    return name, file
-end
-
--- Function to get the .sc file link from the line below the last line of the table
-function Table:get_sc_file_from_link(table_bottom_line)
-    if not table_bottom_line then
-        return nil, nil -- Invalid input
-    end
-
-    local sc_link_line = A.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)[1] or ""
-
-    return self:extract_sc_link(sc_link_line)
-end
-
 -- Internal function to read data back from sc-im
-function Table:read_from_scim(table_top_line, table_bottom_line, md_file, sc_file)
+function Table:read_from_scim(table_top_line, table_bottom_line, md_file, sc_file, link_name, link_fmt)
     -- Read the updated content from the markdown file
     local md_content = vim.fn.readfile(md_file)
 
     -- Determine the range of lines to replace, excluding the old .sc file link
     local end_line = table_bottom_line
     local next_line = A.nvim_buf_get_lines(0, end_line, end_line + 1, false)[1] or ""
-    if next_line:match(sc_file_link_pattern) then
-        -- If the next line is an .sc file link, exclude it from the replacement range
-        end_line = end_line - 1
-    end
 
     -- Replace the old table content in the buffer, excluding the .sc file link
     A.nvim_buf_set_lines(0, table_top_line - 1, end_line + 1, false, md_content)
 
+    if link_fmt == nil then
+        link_fmt = self.config.link_fmt
+    end
+    if link_name == nil then
+        link_name = self.config.link_name
+    end
     -- If .sc file should be included, handle the .sc file link
     if self.config.include_sc_file then
         local sc_link_line = table_top_line - 1 + #md_content
-        local sc_link = "[" .. self.config.link_text .. "](" .. sc_file .. ")"
-        -- Replace or add the .sc file link
-        A.nvim_buf_set_lines(0, sc_link_line, sc_link_line + 1, false, { sc_link })
+        U.update_sc_link(sc_link_line, link_name, sc_file, link_fmt)
     end
-end
-
--- Function to check if a path is absolute
-function Table:is_absolute_path(path)
-    if path:sub(1, 1) == "/" then          -- Unix-like absolute path
-        return true
-    elseif path:match("^[A-Za-z]:\\") then -- Windows absolute path
-        return true
-    end
-    return false
 end
 
 -- Internal function to open the current table in sc-im
 function Table:open_in_scim()
     local file_lines = {}
     local cursor_line = A.nvim_win_get_cursor(0)[1]
-    local table_top_line, table_bottom_line = self:find_table_boundaries(cursor_line)
+    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
 
     -- If no table is found, do not proceed
     if not table_top_line or not table_bottom_line then
-        print("No table found under the cursor, creating new one.")
+        --print("No table found under the cursor, creating new one.")
         table_top_line = cursor_line
         table_bottom_line = cursor_line
     else
-        file_lines = self:get_table_lines(table_top_line, table_bottom_line)
+        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
     end
 
 
     -- Check the line below the table for an .sc file link
-    local _, sc_file_path = self:get_sc_file_from_link(table_bottom_line)
+    local sc_link_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
 
     -- files
     local buffer_dir = vim.fn.expand('%:p:h') .. '/'
     local temp_file_base = vim.fn.tempname()
     local md_file = temp_file_base .. '.md'
-    local sc_file = sc_file_path or self:generate_random_file_name()
-    local sc_file_absolute = sc_file
-
-    if not self:is_absolute_path(sc_file) then
-        sc_file_absolute = buffer_dir .. "/" .. sc_file
-    end
+    local sc_file = sc_file_path or U.generate_random_file_name()
+    local sc_file_absolute = U.make_absolute_path(buffer_dir, sc_file)
 
     local scim_command
     local sc_to_md_command = 'echo "EXECUTE \\"load ' ..
@@ -272,12 +210,44 @@ function Table:open_in_scim()
             --end
             vim.api.nvim_buf_delete(term_bufnr, { force = true })
 
-            self:read_from_scim(table_top_line, table_bottom_line, md_file, sc_file)
+            self:read_from_scim(table_top_line, table_bottom_line, md_file, sc_file, sc_link_name, sc_link_fmt)
         end
     })
 
     -- Start insert mode in the terminal
     vim.cmd('startinsert')
+end
+
+function Table:rename_table_file(new_name)
+    local cursor_line = A.nvim_win_get_cursor(0)[1]
+    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+
+    -- If no table is found, do not proceed
+    if not table_top_line or not table_bottom_line then
+        return vim.notify('No table found', vim.log.levels.INFO)
+    else
+        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+    end
+
+    -- Check the line below the table for an .sc file link
+    local sc_link_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
+
+    if not sc_link_name or not sc_file_path then
+        return vim.notify('No table link found', vim.log.levels.INFO)
+    end
+
+    local dir = vim.fn.expand('%:p:h') .. '/'
+    local is_absolute = U.is_absolute_path(new_name)
+    local old_fullpath = U.make_absolute_path(dir, sc_file_path)
+    local new_fullpath = U.make_absolute_path(dir, new_name)
+
+    if U.rename_file(old_fullpath, new_fullpath) then
+        if is_absolute then
+            U.update_sc_link(table_bottom_line, sc_link_name, new_name, sc_link_fmt)
+        else
+            U.update_sc_link(table_bottom_line, sc_link_name, U.make_relative_path(dir, new_name), sc_link_fmt)
+        end
+    end
 end
 
 return Table

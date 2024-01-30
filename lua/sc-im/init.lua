@@ -12,9 +12,13 @@ function M.setup(cfg)
     t:setup(cfg)
 end
 
----Opens the default terminal
+---Opens table under the cursor in sc-im
 function M.open_in_scim()
     t:open_in_scim()
+end
+
+function M.rename(new_file)
+    t:rename_table_file(new_file)
 end
 
 return M
