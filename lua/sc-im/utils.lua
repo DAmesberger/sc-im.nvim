@@ -7,6 +7,17 @@ local sc_file_link_patterns = {
     { "^%[(.+)%]%((.+)%)$",            "[%name%](%link%)" },
 }
 
+function U.validate_link_fmt(idx)
+    return idx >= 1 and idx <= #sc_file_link_patterns
+end
+
+function U.next_link_fmt(idx)
+    if U.validate_link_fmt(idx) then
+        return (idx % #sc_file_link_patterns) + 1
+    else
+        return 1 -- Return the first index if the current index is invalid
+    end
+end
 
 -- Function to check if a path is absolute
 function U.is_absolute_path(path)
@@ -120,7 +131,7 @@ end
 -- Function to get the .sc file link from the line below the last line of the table
 function U.get_sc_file_from_link(table_bottom_line)
     if not table_bottom_line then
-        return nil, nil -- Invalid input
+        return nil, nil, nil -- Invalid input
     end
 
     local sc_link_line = A.nvim_buf_get_lines(0, table_bottom_line, table_bottom_line + 1, false)[1] or ""
@@ -136,6 +147,21 @@ function U.generate_random_file_name()
         local v = (c == 'x') and random(0, 0xf) or random(8, 0xb)
         return string.format('%x', v)
     end) .. '.sc'
+end
+
+function U.get_link_from_cursor_pos()
+    local cursor_line = A.nvim_win_get_cursor(0)[1]
+    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+
+    -- If no table is found, do not proceed
+    if not table_top_line or not table_bottom_line then
+        vim.notify('No table found', vim.log.levels.INFO)
+        return nil, nil, nil
+    else
+        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+    end
+
+    return table_bottom_line, U.get_sc_file_from_link(table_bottom_line)
 end
 
 function U.rename_file(old_path, new_path)

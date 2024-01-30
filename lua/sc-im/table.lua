@@ -80,6 +80,11 @@ function Table:setup(cfg)
 
     self.config = vim.tbl_deep_extend('force', self.config, cfg)
 
+    if not U.validate_link_fmt(self.config.link_fmt) then
+        vim.notify('sc-im: Invalid link format provided', vim.log.levels.ERROR)
+        self.config.link_fmt = 1
+    end
+
     return self
 end
 
@@ -110,7 +115,7 @@ function Table:get_float_config()
 end
 
 -- Internal function to read data back from sc-im
-function Table:read_from_scim(table_top_line, table_bottom_line, md_file, sc_file, link_name, link_fmt)
+function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, link_name, link_fmt)
     -- Read the updated content from the markdown file
     local md_content = vim.fn.readfile(md_file)
 
@@ -128,17 +133,21 @@ function Table:read_from_scim(table_top_line, table_bottom_line, md_file, sc_fil
         link_name = self.config.link_name
     end
     -- If .sc file should be included, handle the .sc file link
-    if self.config.include_sc_file then
+    if add_link then
         local sc_link_line = table_top_line - 1 + #md_content
         U.update_sc_link(sc_link_line, link_name, sc_file, link_fmt)
     end
 end
 
 -- Internal function to open the current table in sc-im
-function Table:open_in_scim()
+function Table:open_in_scim(add_link)
     local file_lines = {}
     local cursor_line = A.nvim_win_get_cursor(0)[1]
     local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+
+    if add_link == nil then
+        add_link = self.config.include_sc_file
+    end
 
     -- If no table is found, do not proceed
     if not table_top_line or not table_bottom_line then
@@ -165,7 +174,7 @@ function Table:open_in_scim()
         sc_file_absolute:gsub('"', '\\"') ..
         '\\"\nEXECUTE \\"w! ' .. md_file:gsub('"', '\\"') .. '\\"" | sc-im --nocurses --quit_afterload'
 
-    if not sc_file_path and self.config.include_sc_file then
+    if not sc_file_path and add_link then
         -- No existing .sc file link found, create it from markdown
         vim.fn.writefile(file_lines, md_file)
         local script = 'EXECUTE "load ' ..
@@ -210,7 +219,7 @@ function Table:open_in_scim()
             --end
             vim.api.nvim_buf_delete(term_bufnr, { force = true })
 
-            self:read_from_scim(table_top_line, table_bottom_line, md_file, sc_file, sc_link_name, sc_link_fmt)
+            self:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, sc_link_name, sc_link_fmt)
         end
     })
 
@@ -218,19 +227,17 @@ function Table:open_in_scim()
     vim.cmd('startinsert')
 end
 
-function Table:rename_table_file(new_name)
-    local cursor_line = A.nvim_win_get_cursor(0)[1]
-    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+function Table:toggle_table_link_fmt()
+    local sc_link_line, sc_link_name, sc_file_path, sc_link_fmt = U.get_link_from_cursor_pos()
 
-    -- If no table is found, do not proceed
-    if not table_top_line or not table_bottom_line then
-        return vim.notify('No table found', vim.log.levels.INFO)
-    else
-        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+    if sc_link_name and sc_file_path and sc_link_fmt then
+        sc_link_fmt = U.next_link_fmt(sc_link_fmt)
+        U.update_sc_link(sc_link_line, sc_link_name, sc_file_path, sc_link_fmt)
     end
+end
 
-    -- Check the line below the table for an .sc file link
-    local sc_link_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
+function Table:rename_table_file(new_name)
+    local sc_link_line, sc_link_name, sc_file_path, sc_link_fmt = U.get_link_from_cursor_pos()
 
     if not sc_link_name or not sc_file_path then
         return vim.notify('No table link found', vim.log.levels.INFO)
@@ -253,9 +260,9 @@ function Table:rename_table_file(new_name)
 
     if U.rename_file(old_fullpath, new_fullpath) then
         if is_absolute then
-            U.update_sc_link(table_bottom_line, sc_link_name, new_name, sc_link_fmt)
+            U.update_sc_link(sc_link_line, sc_link_name, new_name, sc_link_fmt)
         else
-            U.update_sc_link(table_bottom_line, sc_link_name, U.make_relative_path(dir, new_name), sc_link_fmt)
+            U.update_sc_link(sc_link_line, sc_link_name, U.make_relative_path(dir, new_name), sc_link_fmt)
         end
     end
 end

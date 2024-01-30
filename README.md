@@ -63,9 +63,14 @@ can be set to true to automatically add a link to the sc file (sc-ims native fil
 
 > :warning: This generates a file with a random file name in the same file location as your markdown file you are editing in nvim and links it to your document. Thats why this feature is turned off by default
 
-### `link_text`
+### `link_name`
 
-Link text used when `include_sc_file` is enabled. Defaults to `sc file`
+Link text used when `include_sc_file` is enabled. Defaults to `table link`
+
+### `link_fmt`
+
+1 - Adds the table link as comment. Not visible when rendering. (default)
+2 - Adds the table link as Markdown link. Shows in the rendered Markdown file but enables link detection and updates in external tools
 
 ### `split`
 
@@ -75,7 +80,8 @@ Defines the split direction when opening `sc-im`. Default is `floating`. Can be 
 lua << EOF
 require'sc-im'.setup({
     include_sc_file = true,     -- Whether to include .sc file links, default is false
-    link_text = ".sc file", -- Custom text for .sc file links
+    link_name = "table link",
+    link_fmt = 1,
     split = "floating",
     float_config = {
         width = 0.8,
@@ -91,7 +97,8 @@ EOF
 ```lua
 require('sc-im').setup({
     include_sc_file = true,     -- Whether to include .sc file links, default is false
-    link_text = ".sc file",      -- Custom text for .sc file links
+    link_name = "table link",
+    link_fmt = 1,
     split = "floating",
     float_config = {
         width = 0.8,
@@ -103,25 +110,35 @@ require('sc-im').setup({
 ```
 
 
-## Usage
+## Functions 
+
+- `open_in_scim(add_link)` - Opens the table under the cursor in sc-im. Creates a new table when the cursor is not in a markdown table. The optional add_link can override the default setting `include_sc_file`. If `add_link` is false, the sc file is not linked to the table resulting in a plain Markdown table. If `add_link` is true, the sc file is linked to the table.
+
+- `rename(new_name)` - Renames the attached sc file if present. If new_name is not given, prompts for a new name.
+
+- `toggle()` - Toggle the sc link format between sc link comment (`<!--[table link](file.sc)-->`) and markdown link (`[table link](file.sc)`)
 
 ### Mapping to a shortcut
-
 
 ```vim
 nnoremap <leader>sc :lua require'sc-im'.open_in_scim()<CR>
 ```
 
 
-### Overriding Configuration for a Single Use
-
-To override the global configuration for a single use, pass a configuration table to `open_in_scim`:
-
-```vim
-:lua require'sc-im'.open_in_scim({include_sc_file = true, link_text = "sc file"})
-```
-
 ## Examples
+
+### Key Mappings with [which-key](https://github.com/folke/which-key.nvim)
+``` lua
+require("which-key").register({
+    s = {  
+        name = "sc-im",
+        c = { ":lua require('sc-im').open_in_scim()<cr>", "Open table in sc-im" },
+        p = { ":lua require('sc-im').open_in_scim(false)<cr>", "Open plain table in sc-im" },
+        t = { ":lua require('sc-im').toggle(true)<cr>", "Toggle sc-im link format" },
+        r = { ":lua require('sc-im').rename()<cr>", "Rename linked sc-im file" },
+    }
+}, { prefix = "<leader>" })
+```
 
 ### Opening an Markdown Table
 

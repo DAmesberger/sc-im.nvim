@@ -13,10 +13,16 @@ function M.setup(cfg)
 end
 
 ---Opens table under the cursor in sc-im
-function M.open_in_scim()
-    t:open_in_scim()
+function M.open_in_scim(add_link)
+    t:open_in_scim(add_link)
 end
 
+--- Toggle the table link format
+function M.toggle()
+    t:toggle_table_link_fmt()
+end
+
+--- Rename the current table file
 function M.rename(new_file)
     t:rename_table_file(new_file)
 end
