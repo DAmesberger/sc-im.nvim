@@ -137,7 +137,7 @@ function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_fi
     -- If .sc file should be included, handle the .sc file link
     if add_link then
         local sc_link_line = table_top_line - 1 + #md_content
-        U.update_sc_link(sc_link_line, link_name, sc_file, link_fmt)
+        U.insert_sc_link(sc_link_line, link_name, sc_file, link_fmt)
     end
 end
 

@@ -139,6 +139,11 @@ end
 
 function U.update_sc_link(link_line, link_name, link_file, link_fmt)
     local sc_link = U.create_sc_link(link_fmt, link_name, link_file)
+    A.nvim_buf_set_lines(0, link_line, link_line + 1, false, { sc_link })
+end
+
+function U.insert_sc_link(link_line, link_name, link_file, link_fmt)
+    local sc_link = U.create_sc_link(link_fmt, link_name, link_file)
     A.nvim_buf_set_lines(0, link_line, link_line, false, { sc_link })
 end
 
