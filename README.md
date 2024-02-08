@@ -1,7 +1,7 @@
 
 # sc-im.nvim - Edit Markdown tables in sc-im
 
-`sc-im.nvim` is a Neovim plugin designed to seamlessly integrate with [sc-im](https://github.com/andmarti1424/sc-im), a terminal spreadsheet calculator, to edit Markdown tables. 
+`sc-im.nvim` is a Neovim plugin written in Lua designed to seamlessly integrate with [sc-im](https://github.com/andmarti1424/sc-im), a terminal spreadsheet calculator, to edit Markdown tables. 
 Its core feature is that it can generate and link the native sc file to the Markdown table. That allows to retain formatting and formulas upon reopening (see Options).
 
 
@@ -60,8 +60,7 @@ git clone https://github.com/DAmesberger/sc-im.nvim.git
 ## Options
 ### `include_sc_file` 
 can be set to true to automatically add a link to the sc file (sc-ims native file format) to retain formatting and formulas upon reopening.
-
-> :warning: This generates a file with a random file name in the same file location as your markdown file you are editing in nvim and links it to your document. Thats why this feature is turned off by default
+When this option is enabled the plugin will generate a file with a random file name in the same file location as your markdown file you are editing in nvim and links it to your document. You can use the rename() function to change the name.
 
 ### `link_name`
 
