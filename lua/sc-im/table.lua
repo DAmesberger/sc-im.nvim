@@ -141,6 +141,41 @@ function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_fi
     end
 end
 
+--- Compares the content of the current table with the content of the .sc file and returns the differences
+-- @param file_lines string[] The content of the current buffer
+--  @param sc_filename string The name of the .sc file
+--  @return table[] Differences between the current table and the .sc file { cell_id, sc_cell, md_cell }
+function Table:compare(file_lines, sc_filename)
+    -- Parse SC file
+    local sc_data = {}
+    local sc_file = io.open(sc_filename, "r")
+    if not sc_file then
+        return "Error: Unable to open SC file."
+    end
+
+    for line in sc_file:lines() do
+        local cell_type, cell_id, content = string.match(line, "(%w+) (%w+) = \"([^\"]*)\"")
+        if cell_type and cell_id and content then
+            sc_data[cell_id] = content
+        end
+    end
+    sc_file:close()
+
+    -- Parse Markdown table
+    local md_data = U.parse_markdown_table(file_lines)
+
+    -- Compare data
+    local differences = {}
+    for cell_id, content in pairs(sc_data) do
+        if md_data[cell_id] ~= content then
+            table.insert(differences, { cell_id, content, md_data[cell_id] or "nil" })
+        end
+    end
+
+    -- Return differences
+    return differences
+end
+
 -- Internal function to open the current table in sc-im
 function Table:open_in_scim(add_link)
     local file_lines = {}

@@ -112,6 +112,40 @@ function U.get_table_lines(table_top_line, table_bottom_line)
     return table_lines
 end
 
+function U.parse_markdown_table(file_lines)
+    local md_data = {}
+    local row_number = 0 -- Initialize row_number
+
+    for _, line in ipairs(file_lines) do
+        -- Trim leading and trailing pipes and spaces
+        local trimmed_line = line:match("^|%s*(.-)%s*|$")
+        if trimmed_line and not trimmed_line:match("^[-:| ]+$") then
+            local col_index = 1
+            local col_letter = ""
+            -- Split the trimmed line at each pipe
+            for content in string.gmatch(trimmed_line, "([^|]+)") do
+                col_letter = ""
+                local n = col_index
+                repeat
+                    n = n - 1
+                    local remainder = n % 26
+                    col_letter = string.char(65 + remainder) .. col_letter
+                    n = (n - remainder) / 26
+                until n == 0
+
+                local cell_id = col_letter .. tostring(row_number)
+                -- Trim the content to remove extra spaces
+                content = content:match("^%s*(.-)%s*$")
+                md_data[cell_id] = content
+                col_index = col_index + 1
+            end
+            row_number = row_number + 1 -- Increment row_number for each data row
+        end
+    end
+
+    return md_data
+end
+
 -- Function to extract .sc name and link from a line
 function U.extract_sc_link(line)
     if not line then
