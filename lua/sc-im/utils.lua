@@ -146,29 +146,26 @@ function U.parse_markdown_table(file_lines)
     return md_data
 end
 
-function U.get_sheet_names(sc_filename)
+function U.get_sheets(sc_filename)
     local sc_file = io.open(sc_filename, "r")
-    local found = false
     local sheet_names = {}
+    local current_sheet = nil
     if not sc_file then
         return "Error: Unable to open SC file."
     end
 
     for line in sc_file:lines() do
-        local sheetname = string.match(line, "newsheet \"([^\"]*)\"")
-        if sheetname then
-            table.insert(sheet_names, sheetname)
-            found = true
-        else
-            -- newsheet is contiguous, so if we found at least one,
-            -- and we find the first line after that not containing one
-            -- we can stop searching
-            if found then
-                return sheet_names
+        local action, sheetname = string.match(line, "(newsheet|movetosheet) \"([^\"]*)\"")
+        if action and sheetname then
+            if action == "newsheet" then
+                table.insert(sheet_names, sheetname)
+            elseif action == "movetosheet" then
+                current_sheet = sheetname
             end
         end
     end
-    return sheet_names
+
+    return current_sheet, sheet_names
 end
 
 --

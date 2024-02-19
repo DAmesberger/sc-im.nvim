@@ -69,7 +69,6 @@ describe("compare", function()
         return f ~= nil
     end
 
-    --
     -- get all lines from a file, returns an empty
     -- list/table if the file does not exist
     local function lines_from(file)
@@ -94,17 +93,10 @@ describe("compare", function()
         end
     end
 
-    it("parse markdown table", function()
-        local map = U.parse_markdown_table(lines_from("tests/data/test1.ms"))
-        print(dump(map))
-    end)
-
     it("compare text", function()
         local lines = lines_from("tests/data/test1.md")
         local result = t:compare(lines, "tests/data/test1.sc")
         -- print(dump(result))
-
-        print("cell", "sc", "md")
 
         assert.are.same(result["A2"][1], "test 3")
         assert.are.same(result["A2"][2], "test 3a")
