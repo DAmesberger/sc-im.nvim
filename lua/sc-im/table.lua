@@ -21,7 +21,6 @@ local Table = {}
 
 ---@class Config
 ---@field include_sc_file boolean: if true, the sc file is linked below the table (default: true)
----@field link_name string: Text used for the sc file link (default: 'sc file')
 ---@field split string: 'floating', 'vertical', 'horizontal' (default 'floating')
 ---@field float_config FloatConfig: Dimensions of the floating window
 
@@ -29,7 +28,6 @@ local Table = {}
 local defaults = {
     ft = 'scim',
     include_sc_file = true,
-    link_name = "table link",
     link_fmt = 1,
     split = "floating",
     float_config = {
@@ -120,7 +118,7 @@ function Table:get_float_config()
 end
 
 -- Internal function to read data back from sc-im
-function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, link_name, link_fmt)
+function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, sc_file_absolute, link_fmt)
     -- Read the updated content from the markdown file
     local md_content = vim.fn.readfile(md_file)
 
@@ -134,13 +132,13 @@ function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_fi
     if link_fmt == nil then
         link_fmt = self.config.link_fmt
     end
-    if link_name == nil then
-        link_name = self.config.link_name
-    end
+
+    local current_sheet, sheet_names = U.get_sheets(sc_file_absolute)
+
     -- If .sc file should be included, handle the .sc file link
     if add_link then
         local sc_link_line = table_top_line - 1 + #md_content
-        U.insert_sc_link(sc_link_line, link_name, sc_file, link_fmt)
+        U.insert_sc_link(sc_link_line, current_sheet, sc_file, link_fmt)
     end
 end
 
@@ -274,7 +272,8 @@ function Table:open_in_scim(add_link)
             end
             self.buf = nil
 
-            self:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, sc_link_name, sc_link_fmt)
+            self:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, sc_file_absolute,
+                sc_link_fmt)
         end
     })
 

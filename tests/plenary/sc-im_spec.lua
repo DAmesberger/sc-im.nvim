@@ -62,6 +62,15 @@ describe("find_table_boundaries", function()
 end)
 
 describe("compare", function()
+    it("get sheets", function()
+        current_sheet, sheets = U.get_sheets("tests/data/test2.sc")
+        assert.are.same(current_sheet, "Sheet1")
+        assert.are.same(sheets[1], "Sheet1")
+        assert.are.same(sheets[2], "Sheet2")
+    end)
+end)
+
+describe("compare", function()
     -- see if the file exists
     local function file_exists(file)
         local f = io.open(file, "rb")

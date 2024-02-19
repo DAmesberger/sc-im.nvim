@@ -155,7 +155,12 @@ function U.get_sheets(sc_filename)
     end
 
     for line in sc_file:lines() do
-        local action, sheetname = string.match(line, "(newsheet|movetosheet) \"([^\"]*)\"")
+        local action, sheetname
+        if string.match(line, "^newsheet") then
+            action, sheetname = string.match(line, "^(newsheet) \"([^\"]*)\"")
+        elseif string.match(line, "^movetosheet") then
+            action, sheetname = string.match(line, "^(movetosheet) \"([^\"]*)\"")
+        end
         if action and sheetname then
             if action == "newsheet" then
                 table.insert(sheet_names, sheetname)
