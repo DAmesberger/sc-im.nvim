@@ -146,6 +146,84 @@ function U.parse_markdown_table(file_lines)
     return md_data
 end
 
+function U.get_sheet_names(sc_filename)
+    local sc_file = io.open(sc_filename, "r")
+    local found = false
+    local sheet_names = {}
+    if not sc_file then
+        return "Error: Unable to open SC file."
+    end
+
+    for line in sc_file:lines() do
+        local sheetname = string.match(line, "newsheet \"([^\"]*)\"")
+        if sheetname then
+            table.insert(sheet_names, sheetname)
+            found = true
+        else
+            -- newsheet is contiguous, so if we found at least one,
+            -- and we find the first line after that not containing one
+            -- we can stop searching
+            if found then
+                return sheet_names
+            end
+        end
+    end
+    return sheet_names
+end
+
+--
+--- Parses an SC (spreadsheet calculator) file and extracts its data into a structured Lua table.
+-- The function iterates through each line of the file, identifying and storing information about sheets and cell data.
+-- @param sc_filename The path and filename of the SC file to parse.
+-- @return current_sheet The name of the last sheet processed in the SC file; returns nil if no sheets are defined.
+-- @return sc_data A table structured with sheet names as keys, each containing a sub-table where each key is a cell identifier (e.g., 'A1', 'B2') and its value is a table containing cell type, whether it's a formula, and the cell's content.
+--
+-- Example of the returned sc_data table:
+-- {
+--     Sheet1 = {
+--         A1 = {"label", false, "Header"},
+--         B1 = {"let", false, "100"},
+--         C1 = {"let", true, "@sum(A1:B1)"}
+--     },
+--     Sheet2 = {
+--         A1 = {"leftstring", false, "Introduction"},
+--         B2 = {"rightstring", false, "Conclusion"}
+--     }
+-- }
+function U.parse_sc_file(sc_filename)
+    -- Parse SC file
+    local sc_data = {}
+    local current_sheet = nil
+    local sc_file = io.open(sc_filename, "r")
+    if not sc_file then
+        return "Error: Unable to open SC file."
+    end
+
+    for line in sc_file:lines() do
+        local sheetname = string.match(line, "movetosheet \"([^\"]*)\"")
+        if sheetname then
+            current_sheet = sheetname
+            if not sc_data[current_sheet] then
+                sc_data[current_sheet] = {}
+            end
+            sc_data[""] = sheetname
+        end
+
+        --local cell_type, cell_id, content = string.match(line, "(%w+) (%w+) = \"([^\"]*)\"")
+        local cell_type, cell_id, content = string.match(line, "(%w+) (%w+) =%s*\"?([^\"]*)\"?")
+
+        if cell_type and cell_id and content then
+            local is_formula = false
+            if cell_type == "let" and string.sub(content, 1, 1) == "@" then
+                is_formula = true
+            end
+            sc_data[current_sheet][cell_id] = { cell_type, is_formula, content }
+        end
+    end
+    sc_file:close()
+    return current_sheet, sc_data
+end
+
 -- Function to extract .sc name and link from a line
 function U.extract_sc_link(line)
     if not line then

@@ -9,12 +9,19 @@ nb_frozen_rows 0
 nb_frozen_cols 0
 nb_frozen_screenrows 0
 nb_frozen_screencols 0
+format A 10 1 0
 format B 13 2 0
+format C 10 0 0
 label A0 = "test 1"
 leftstring B0 = "left aligned"
 label A1 = "test 2"
 rightstring B1 = "right aligned"
+let C1 = 10
 label A2 = "test 3"
 label B2 = "center"
-goto B2
+let C2 = 20
+let A3 = 1.1
+let B3 = 2.22
+let C3 = @sum(C1:C2)
+goto B3
 movetosheet "Sheet1"

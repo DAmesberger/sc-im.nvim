@@ -1,5 +1,8 @@
 local A = vim.api
 local U = require('sc-im.utils')
+
+local unpack = table.unpack or unpack
+
 --
 ---@alias WinId number Floating Window's ID
 
@@ -147,28 +150,28 @@ end
 --  @return table[] Differences between the current table and the .sc file { cell_id, sc_cell, md_cell }
 function Table:compare(file_lines, sc_filename)
     -- Parse SC file
-    local sc_data = {}
-    local sc_file = io.open(sc_filename, "r")
-    if not sc_file then
-        return "Error: Unable to open SC file."
-    end
-
-    for line in sc_file:lines() do
-        local cell_type, cell_id, content = string.match(line, "(%w+) (%w+) = \"([^\"]*)\"")
-        if cell_type and cell_id and content then
-            sc_data[cell_id] = content
-        end
-    end
-    sc_file:close()
+    local current_sheet, sc_data = U.parse_sc_file(sc_filename)
 
     -- Parse Markdown table
     local md_data = U.parse_markdown_table(file_lines)
 
     -- Compare data
+    local checked_cells = {}
     local differences = {}
-    for cell_id, content in pairs(sc_data) do
-        if md_data[cell_id] ~= content then
-            table.insert(differences, { cell_id, content, md_data[cell_id] or "nil" })
+
+    -- iterate sc data
+    for cell_id, cell_details in pairs(sc_data[current_sheet]) do
+        local cell_type, is_formula, cell_content = unpack(cell_details)
+        if is_formula == false and md_data[cell_id] ~= cell_content then
+            differences[cell_id] = { cell_content, md_data[cell_id] or nil }
+        end
+        checked_cells[cell_id] = true
+    end
+
+    -- iterate new md data
+    for cell_id, cell_content in pairs(md_data) do
+        if checked_cells[cell_id] ~= true then
+            differences[cell_id] = { nil, cell_content }
         end
     end
 

@@ -102,6 +102,17 @@ describe("compare", function()
     it("compare text", function()
         local lines = lines_from("tests/data/test1.md")
         local result = t:compare(lines, "tests/data/test1.sc")
-        print(dump(result))
+        -- print(dump(result))
+
+        print("cell", "sc", "md")
+
+        assert.are.same(result["A2"][1], "test 3")
+        assert.are.same(result["A2"][2], "test 3a")
+
+        assert.are.same(result["A4"][1], nil)
+        assert.are.same(result["A4"][2], "new line")
+
+        assert.are.same(result["B4"][1], nil)
+        assert.are.same(result["B4"][2], "")
     end)
 end)
