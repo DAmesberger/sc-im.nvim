@@ -237,19 +237,6 @@ function Table:diff_to_script(differences)
     return table.concat(commands, "\n")
 end
 
-local function dump(o)
-    if type(o) == 'table' then
-        local s = '{ '
-        for k, v in pairs(o) do
-            if type(k) ~= 'number' then k = '"' .. k .. '"' end
-            s = s .. '[' .. k .. '] = ' .. dump(v) .. ','
-        end
-        return s .. '} '
-    else
-        return tostring(o)
-    end
-end
-
 -- Internal function to open the current table in sc-im
 function Table:open_in_scim(add_link)
     local file_lines = {}
@@ -271,7 +258,7 @@ function Table:open_in_scim(add_link)
 
 
     -- Check the line below the table for an .sc file link
-    local sc_link_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
+    local sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
 
     -- files
     local buffer_dir = vim.fn.expand('%:p:h') .. '/'
@@ -285,27 +272,30 @@ function Table:open_in_scim(add_link)
         sc_file_absolute:gsub('"', '\\"') ..
         '\\"\nEXECUTE \\"w! ' .. md_file:gsub('"', '\\"') .. '\\"" | sc-im --nocurses --quit_afterload'
 
-    local changes = ""
+    local script = ""
+    -- set the correct sheet to work on
+    if sc_sheet_name then
+        script = 'MOVETOSHEET "' .. sc_sheet_name .. '"\n'
+    end
+
     if self.config.update_sc_from_md then
         local is_different, differences = self:compare(file_lines, sc_file_absolute)
         if is_different == true then
-            print('it is different')
-            print(dump(differences))
-            changes = self:diff_to_script(differences):gsub('"', '\\"') .. '\n' .. "RECALC"
+            script = script .. self:diff_to_script(differences) .. '\n' .. "RECALC"
         end
     end
 
     if not sc_file_path and add_link then
         -- No existing .sc file link found, create it from markdown
         vim.fn.writefile(file_lines, md_file)
-        local script = 'EXECUTE "load ' ..
-            md_file:gsub('"', '\\"') .. '"\nEXECUTE "w! ' .. sc_file_absolute:gsub('"', '\\"') .. '\n' .. changes
+        script = 'EXECUTE "load ' ..
+            md_file .. '"\nEXECUTE "w! ' .. sc_file_absolute .. '"\n' .. script
         scim_command = 'echo "' .. script:gsub('"', '\\"') .. '" | sc-im'
     else
         -- Existing .sc file link found, use it
-        scim_command = 'sc-im ' .. sc_file_absolute:gsub('"', '\\"')
-        if changes ~= "" then
-            scim_command = 'echo "' .. changes .. '" | ' .. scim_command
+        scim_command = 'sc-im ' .. sc_file_absolute
+        if script ~= "" then
+            scim_command = 'echo "' .. script:gsub('"', '\\"') .. '" | ' .. scim_command
         end
     end
 
