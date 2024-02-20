@@ -59,12 +59,11 @@ git clone https://github.com/DAmesberger/sc-im.nvim.git
 
 ## Options
 ### `include_sc_file` 
-can be set to true to automatically add a link to the sc file (sc-ims native file format) to retain formatting and formulas upon reopening.
+when true, a link to the sc file (sc-ims native file format) is automatically added to retain formatting and formulas upon reopening. The format of the link is controlled with `link_fmt`. The link name is the table sheet that the Markdown table is referring to.
 When this option is enabled the plugin will generate a file with a random file name in the same file location as your markdown file you are editing in nvim and links it to your document. You can use the rename() function to change the name.
 
-### `link_name`
-
-Link text used when `include_sc_file` is enabled. Defaults to `table link`
+### `update_sc_from_md`
+if set to true, when opening the table in sc-im, changes in the Markdown table are propagated to the sc-im table. Changes are applied sequentially via an sc-im script, so the changes can be undone with the sc-im undo command. Formulas are not touched, so changes to cells in Markdown that are formulas in sc-im are ignored
 
 ### `link_fmt`
 
