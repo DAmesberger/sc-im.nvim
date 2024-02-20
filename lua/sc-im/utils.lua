@@ -1,5 +1,7 @@
 local U = {}
 
+local unpack = table.unpack or unpack
+
 local A = vim.api
 
 local sc_file_link_patterns = {
@@ -43,7 +45,8 @@ function U.is_absolute_path(path)
     return false
 end
 
-function U.make_absolute_path(base_dir, path)
+function U.make_absolute_path(path)
+    local base_dir = vim.fn.expand('%:p:h') .. '/'
     if not U.is_absolute_path(path) then
         -- Ensure the base_dir ends with a "/"
         if base_dir:sub(-1) ~= "/" then
@@ -55,7 +58,8 @@ function U.make_absolute_path(base_dir, path)
     end
 end
 
-function U.make_relative_path(base_dir, path)
+function U.make_relative_path(path)
+    local base_dir = vim.fn.expand('%:p:h') .. '/'
     -- Ensure the base_dir ends with a "/"
     if base_dir:sub(-1) ~= "/" then
         base_dir = base_dir .. "/"
@@ -226,6 +230,30 @@ function U.parse_sc_file(sc_filename)
     return current_sheet, sc_data
 end
 
+function U.sc_to_md(sc_filename, script)
+    local temp_file_base = vim.fn.tempname()
+    local md_file = temp_file_base .. '.md'
+
+    if script == nil then
+        script = ""
+    end
+
+    local sc_file_absolute = U.make_absolute_path(sc_filename)
+
+    local command = 'echo "EXECUTE \\"load ' ..
+        sc_file_absolute:gsub('"', '\\"') .. '\n' ..
+        script:gsub('"', '\\"') ..
+        '\\"\nEXECUTE \\"w! ' .. md_file:gsub('"', '\\"') .. '\\"" | sc-im --nocurses --quit_afterload'
+
+    vim.fn.system(command)
+
+    local md_content = vim.fn.readfile(md_file)
+
+    os.remove(md_file)
+
+    return md_content
+end
+
 -- Function to extract .sc name and link from a line
 function U.extract_sc_link(line)
     if not line then
@@ -290,8 +318,6 @@ function U.get_link_from_cursor_pos()
     if not table_top_line or not table_bottom_line then
         vim.notify('No table found', vim.log.levels.INFO)
         return nil, nil, nil
-    else
-        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
     end
 
     return table_bottom_line, U.get_sc_file_from_link(table_bottom_line)
@@ -310,6 +336,99 @@ function U.rename_file(old_path, new_path)
     end
 
     return true
+end
+
+--- Compares the content of the current table with the content of the .sc file and returns the differences
+-- @param file_lines string[] The content of the current buffer
+--  @param sc_filename string The name of the .sc file
+--  @return table[] Differences between the current table and the .sc file { cell_id, sc_cell, md_cell }
+-- @return table A table of differences between the current table and the .sc file, indexed by cell_id, each value is a table containing { cell_type, sc_cell_content, md_cell_content }, where `cell_type` is the type of the cell from the .sc file, `sc_cell_content` is the content from the .sc file, and `md_cell_content` is the content from the Markdown table. If there is no corresponding cell in the .sc or Markdown data, the respective field will be nil.
+function U.compare(file_lines, sc_filename)
+    -- Parse SC file
+    local current_sheet, sc_data = U.parse_sc_file(U.make_absolute_path(sc_filename))
+
+    -- Parse Markdown table
+    local md_data = U.parse_markdown_table(file_lines)
+
+    -- Compare data
+    local checked_cells = {}
+    local differences = {}
+    local is_different = false
+
+    local function is_equal(cell_type, first_cell, second_cell)
+        if cell_type == "let" then
+            return tonumber(first_cell) == tonumber(second_cell)
+        else
+            return first_cell == second_cell
+        end
+    end
+
+    -- iterate sc data
+    if sc_data ~= nil and sc_data[current_sheet] ~= nil then
+        for cell_id, cell_details in pairs(sc_data[current_sheet]) do
+            local cell_type, is_formula, cell_content = unpack(cell_details)
+            if is_formula == false and not is_equal(cell_type, md_data[cell_id], cell_content) then
+                differences[cell_id] = { cell_type, cell_content, md_data[cell_id] or nil }
+                is_different = true
+            end
+            checked_cells[cell_id] = true
+        end
+
+        -- iterate new md data
+        for cell_id, cell_content in pairs(md_data) do
+            if checked_cells[cell_id] ~= true then
+                local num = tonumber(cell_content)
+                local cell_type = "leftstring"
+                if num then
+                    cell_type = "let"
+                end
+                differences[cell_id] = { cell_type, nil, cell_content }
+                is_different = true
+            end
+        end
+    end
+
+    -- Return differences
+    return is_different, differences
+end
+
+function U.diff_to_script(differences)
+    local commands = {}
+
+    -- Iterate through all differences
+    for cell_id, diff in pairs(differences) do
+        local cell_type, sc_cell_content, md_cell_content = unpack(diff)
+
+        -- Determine the command based on the logic provided
+        local command = ""
+        if md_cell_content ~= nil then
+            -- Changes were made to md_cell or new md_cell was added
+            if cell_type == "let" then
+                -- For numerical values or formulas
+                command = string.format("LET %s = %s", cell_id, md_cell_content)
+            else
+                -- For text with specific alignment
+                command = string.format("%s %s = \"%s\"", cell_type:upper(), cell_id, md_cell_content)
+            end
+        elseif sc_cell_content ~= nil and md_cell_content == nil then
+            -- sc_cell exists but md_cell was removed or cleared
+            if cell_type == "let" then
+                -- Setting numerical cells to an empty value
+                command = string.format("LET %s = ", cell_id) -- Assuming '0' as the 'empty' state for numerical values
+            else
+                -- Setting text cells to an empty string
+                command = string.format("%s %s = \"\"", cell_type:upper(), cell_id)
+            end
+        end
+
+        -- Add the command to the list if one was generated
+        if command ~= "" then
+            table.insert(commands, command)
+        end
+    end
+
+    -- Return the list of commands
+    return table.concat(commands, "\n")
 end
 
 return U

@@ -1,7 +1,6 @@
 local A = vim.api
 local U = require('sc-im.utils')
 
-local unpack = table.unpack or unpack
 
 --
 ---@alias WinId number Floating Window's ID
@@ -120,121 +119,22 @@ function Table:get_float_config()
 end
 
 -- Internal function to read data back from sc-im
-function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, sc_file_absolute, link_fmt)
-    -- Read the updated content from the markdown file
-    local md_content = vim.fn.readfile(md_file)
-
-    -- Determine the range of lines to replace, excluding the old .sc file link
-    local end_line = table_bottom_line
-    local next_line = A.nvim_buf_get_lines(0, end_line, end_line + 1, false)[1] or ""
-
+function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_content, sc_file, sc_file_absolute,
+                              link_fmt)
     -- Replace the old table content in the buffer, excluding the .sc file link
-    A.nvim_buf_set_lines(0, table_top_line - 1, end_line + 1, false, md_content)
+    A.nvim_buf_set_lines(0, table_top_line - 1, table_bottom_line + 1, false, md_content)
 
     if link_fmt == nil then
         link_fmt = self.config.link_fmt
     end
 
-    local current_sheet, sheet_names = U.get_sheets(sc_file_absolute)
+    local current_sheet, _ = U.get_sheets(sc_file_absolute)
 
     -- If .sc file should be included, handle the .sc file link
     if add_link then
         local sc_link_line = table_top_line - 1 + #md_content
         U.insert_sc_link(sc_link_line, current_sheet, sc_file, link_fmt)
     end
-end
-
---- Compares the content of the current table with the content of the .sc file and returns the differences
--- @param file_lines string[] The content of the current buffer
---  @param sc_filename string The name of the .sc file
---  @return table[] Differences between the current table and the .sc file { cell_id, sc_cell, md_cell }
--- @return table A table of differences between the current table and the .sc file, indexed by cell_id, each value is a table containing { cell_type, sc_cell_content, md_cell_content }, where `cell_type` is the type of the cell from the .sc file, `sc_cell_content` is the content from the .sc file, and `md_cell_content` is the content from the Markdown table. If there is no corresponding cell in the .sc or Markdown data, the respective field will be nil.
-function Table:compare(file_lines, sc_filename)
-    -- Parse SC file
-    local current_sheet, sc_data = U.parse_sc_file(sc_filename)
-
-    -- Parse Markdown table
-    local md_data = U.parse_markdown_table(file_lines)
-
-    -- Compare data
-    local checked_cells = {}
-    local differences = {}
-    local is_different = false
-
-    local function is_equal(cell_type, first_cell, second_cell)
-        if cell_type == "let" then
-            return tonumber(first_cell) == tonumber(second_cell)
-        else
-            return first_cell == second_cell
-        end
-    end
-
-    -- iterate sc data
-    if sc_data ~= nil and sc_data[current_sheet] ~= nil then
-        for cell_id, cell_details in pairs(sc_data[current_sheet]) do
-            local cell_type, is_formula, cell_content = unpack(cell_details)
-            if is_formula == false and not is_equal(cell_type, md_data[cell_id], cell_content) then
-                differences[cell_id] = { cell_type, cell_content, md_data[cell_id] or nil }
-                is_different = true
-            end
-            checked_cells[cell_id] = true
-        end
-
-        -- iterate new md data
-        for cell_id, cell_content in pairs(md_data) do
-            if checked_cells[cell_id] ~= true then
-                local num = tonumber(cell_content)
-                local cell_type = "leftstring"
-                if num then
-                    cell_type = "let"
-                end
-                differences[cell_id] = { cell_type, nil, cell_content }
-                is_different = true
-            end
-        end
-    end
-
-    -- Return differences
-    return is_different, differences
-end
-
-function Table:diff_to_script(differences)
-    local commands = {}
-
-    -- Iterate through all differences
-    for cell_id, diff in pairs(differences) do
-        local cell_type, sc_cell_content, md_cell_content = unpack(diff)
-
-        -- Determine the command based on the logic provided
-        local command = ""
-        if md_cell_content ~= nil then
-            -- Changes were made to md_cell or new md_cell was added
-            if cell_type == "let" then
-                -- For numerical values or formulas
-                command = string.format("LET %s = %s", cell_id, md_cell_content)
-            else
-                -- For text with specific alignment
-                command = string.format("%s %s = \"%s\"", cell_type:upper(), cell_id, md_cell_content)
-            end
-        elseif sc_cell_content ~= nil and md_cell_content == nil then
-            -- sc_cell exists but md_cell was removed or cleared
-            if cell_type == "let" then
-                -- Setting numerical cells to an empty value
-                command = string.format("LET %s = ", cell_id) -- Assuming '0' as the 'empty' state for numerical values
-            else
-                -- Setting text cells to an empty string
-                command = string.format("%s %s = \"\"", cell_type:upper(), cell_id)
-            end
-        end
-
-        -- Add the command to the list if one was generated
-        if command ~= "" then
-            table.insert(commands, command)
-        end
-    end
-
-    -- Return the list of commands
-    return table.concat(commands, "\n")
 end
 
 -- Internal function to open the current table in sc-im
@@ -261,16 +161,12 @@ function Table:open_in_scim(add_link)
     local sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
 
     -- files
-    local buffer_dir = vim.fn.expand('%:p:h') .. '/'
     local temp_file_base = vim.fn.tempname()
     local md_file = temp_file_base .. '.md'
     local sc_file = sc_file_path or U.generate_random_file_name()
-    local sc_file_absolute = U.make_absolute_path(buffer_dir, sc_file)
+    local sc_file_absolute = U.make_absolute_path(sc_file)
 
     local scim_command
-    local sc_to_md_command = 'echo "EXECUTE \\"load ' ..
-        sc_file_absolute:gsub('"', '\\"') ..
-        '\\"\nEXECUTE \\"w! ' .. md_file:gsub('"', '\\"') .. '\\"" | sc-im --nocurses --quit_afterload'
 
     local script = ""
     -- set the correct sheet to work on
@@ -279,9 +175,9 @@ function Table:open_in_scim(add_link)
     end
 
     if self.config.update_sc_from_md then
-        local is_different, differences = self:compare(file_lines, sc_file_absolute)
+        local is_different, differences = U.compare(file_lines, sc_file_absolute)
         if is_different == true then
-            script = script .. self:diff_to_script(differences) .. '\n' .. "RECALC"
+            script = script .. U.diff_to_script(differences) .. '\n' .. "RECALC"
         end
     end
 
@@ -333,7 +229,7 @@ function Table:open_in_scim(add_link)
     vim.fn.termopen(scim_command, {
         on_exit = function()
             -- Run the scim_command and get its output (if needed)
-            local _ = vim.fn.system(sc_to_md_command)
+            local md_lines = U.sc_to_md(sc_file_absolute)
 
             self.win = nil
 
@@ -347,7 +243,7 @@ function Table:open_in_scim(add_link)
             end
             self.buf = nil
 
-            self:read_from_scim(table_top_line, table_bottom_line, add_link, md_file, sc_file, sc_file_absolute,
+            self:read_from_scim(table_top_line, table_bottom_line, add_link, md_lines, sc_file, sc_file_absolute,
                 sc_link_fmt)
         end
     })
@@ -382,18 +278,55 @@ function Table:rename_table_file(new_name)
         return vim.notify('No new name provided', vim.log.levels.INFO)
     end
 
-    local dir = vim.fn.expand('%:p:h') .. '/'
     local is_absolute = U.is_absolute_path(new_name)
-    local old_fullpath = U.make_absolute_path(dir, sc_file_path)
-    local new_fullpath = U.make_absolute_path(dir, new_name)
+    local old_fullpath = U.make_absolute_path(sc_file_path)
+    local new_fullpath = U.make_absolute_path(new_name)
 
     if U.rename_file(old_fullpath, new_fullpath) then
         if is_absolute then
             U.update_sc_link(sc_link_line, sc_link_name, new_name, sc_link_fmt)
         else
-            U.update_sc_link(sc_link_line, sc_link_name, U.make_relative_path(dir, new_name), sc_link_fmt)
+            U.update_sc_link(sc_link_line, sc_link_name, U.make_relative_path(new_name), sc_link_fmt)
         end
     end
+end
+
+function Table:update_table(save_sc)
+    local file_lines = {}
+    local cursor_line = A.nvim_win_get_cursor(0)[1]
+    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+
+    -- If no table is found, do not proceed
+    if not table_top_line or not table_bottom_line then
+        vim.notify("No table found under the cursor.", vim.log.levels.INFO)
+        return
+    else
+        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+    end
+
+    -- Check the line below the table for an .sc file link
+    local sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
+
+    if not sc_sheet_name or not sc_file_path or not sc_link_fmt then
+        vim.notify("No .sc file link found.", vim.log.levels.INFO)
+        return
+    end
+
+    local is_different, differences = U.compare(file_lines, sc_file_path)
+    local script = "RECALC"
+
+    if save_sc then
+        script = script .. '"\nEXECUTE "w! ' .. U.make_absolute_path(sc_file_path) .. '"\n'
+    end
+
+    if is_different == true then
+        script = U.diff_to_script(differences) .. '\n' .. script
+    end
+
+    local md_content = U.sc_to_md(sc_file_path, script)
+    --
+    -- Replace the old table content in the buffer, excluding the .sc file link
+    A.nvim_buf_set_lines(0, table_top_line - 1, table_bottom_line, false, md_content)
 end
 
 function Table:close()
