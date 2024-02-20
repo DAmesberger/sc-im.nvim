@@ -139,35 +139,12 @@ end
 
 -- Internal function to open the current table in sc-im
 function Table:open_in_scim(add_link)
-    local file_lines = {}
-    local cursor_line = A.nvim_win_get_cursor(0)[1]
-    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+    local _, table_top_line, table_bottom_line, file_lines,
+    sc_sheet_name, sc_file_path, sc_link_fmt = U.get_table_under_cursor()
 
     if add_link == nil then
         add_link = self.config.include_sc_file
     end
-
-    local sc_sheet_name = nil
-    local sc_file_path = nil
-    local sc_link_fmt = nil
-
-    -- If no table is found
-    if not table_top_line or not table_bottom_line then
-        -- set defaults for a new table
-        table_top_line = cursor_line
-        table_bottom_line = cursor_line
-
-        -- lets first check if we find a link to a .sc file
-        sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(cursor_line - 1)
-        if sc_sheet_name and sc_file_path and sc_link_fmt then
-            table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line - 1)
-            file_lines = U.get_table_lines(table_top_line, table_bottom_line)
-        end
-    else
-        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
-        sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
-    end
-
 
     -- Check the line below the table for an .sc file link
 
@@ -185,7 +162,7 @@ function Table:open_in_scim(add_link)
         script = 'MOVETOSHEET "' .. sc_sheet_name .. '"\n'
     end
 
-    if self.config.update_sc_from_md then
+    if self.config.update_sc_from_md and file_lines and sc_file_absolute then
         local is_different, differences = U.compare(file_lines, sc_file_absolute)
         if is_different == true then
             script = script .. U.diff_to_script(differences) .. '\n' .. "RECALC"
@@ -303,20 +280,14 @@ function Table:rename_table_file(new_name)
 end
 
 function Table:update_table(save_sc)
-    local file_lines = {}
-    local cursor_line = A.nvim_win_get_cursor(0)[1]
-    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+    local table_found, table_top_line, table_bottom_line, file_lines,
+    sc_sheet_name, sc_file_path, sc_link_fmt = U.get_table_under_cursor()
 
     -- If no table is found, do not proceed
-    if not table_top_line or not table_bottom_line then
+    if not table_found then
         vim.notify("No table found under the cursor.", vim.log.levels.INFO)
         return
-    else
-        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
     end
-
-    -- Check the line below the table for an .sc file link
-    local sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
 
     if not sc_sheet_name or not sc_file_path or not sc_link_fmt then
         vim.notify("No .sc file link found.", vim.log.levels.INFO)
@@ -330,9 +301,15 @@ function Table:update_table(save_sc)
         script = script .. '"\nEXECUTE "w! ' .. U.make_absolute_path(sc_file_path) .. '"\n'
     end
 
+    if sc_sheet_name then
+        script = 'MOVETOSHEET "' .. sc_sheet_name .. '"\n' .. script
+    end
+
     if is_different == true then
         script = U.diff_to_script(differences) .. '\n' .. script
     end
+    --
+    -- set the correct sheet to work on
 
     local md_content = U.sc_to_md(sc_file_path, script)
     --

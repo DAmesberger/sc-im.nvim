@@ -177,6 +177,41 @@ function U.get_sheets(sc_filename)
     return current_sheet, sheet_names
 end
 
+function U.get_table_under_cursor()
+    local table_found = true
+    local file_lines = {}
+    local cursor_line = A.nvim_win_get_cursor(0)[1]
+    local table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line)
+
+    local sc_sheet_name = nil
+    local sc_file_path = nil
+    local sc_link_fmt = nil
+
+    -- If no table is found
+    if not table_top_line or not table_bottom_line then
+        -- set defaults for a new table
+        table_top_line = cursor_line
+        table_bottom_line = cursor_line
+
+        -- lets first check if we find a link to a .sc file
+        sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(cursor_line - 1)
+        if sc_sheet_name and sc_file_path and sc_link_fmt then
+            table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line - 1)
+            file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+            if not table_top_line or not table_bottom_line then
+                table_top_line = cursor_line
+                table_bottom_line = cursor_line
+                table_found = false
+            end
+        end
+    else
+        file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+        sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
+    end
+
+    return table_found, table_top_line, table_bottom_line, file_lines, sc_sheet_name, sc_file_path, sc_link_fmt
+end
+
 --
 --- Parses an SC (spreadsheet calculator) file and extracts its data into a structured Lua table.
 -- The function iterates through each line of the file, identifying and storing information about sheets and cell data.
