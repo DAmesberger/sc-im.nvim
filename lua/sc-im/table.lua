@@ -21,6 +21,7 @@ local Table = {}
 
 ---@class Config
 ---@field include_sc_file boolean: if true, the sc file is linked below the table (default: true)
+---@field update_sc_from_md boolean: if true, the sc file is updated from detected changes in markdown (default: true)
 ---@field split string: 'floating', 'vertical', 'horizontal' (default 'floating')
 ---@field float_config FloatConfig: Dimensions of the floating window
 
@@ -28,6 +29,7 @@ local Table = {}
 local defaults = {
     ft = 'scim',
     include_sc_file = true,
+    update_sc_from_md = true,
     link_fmt = 1,
     split = "floating",
     float_config = {
@@ -146,6 +148,7 @@ end
 -- @param file_lines string[] The content of the current buffer
 --  @param sc_filename string The name of the .sc file
 --  @return table[] Differences between the current table and the .sc file { cell_id, sc_cell, md_cell }
+-- @return table A table of differences between the current table and the .sc file, indexed by cell_id, each value is a table containing { cell_type, sc_cell_content, md_cell_content }, where `cell_type` is the type of the cell from the .sc file, `sc_cell_content` is the content from the .sc file, and `md_cell_content` is the content from the Markdown table. If there is no corresponding cell in the .sc or Markdown data, the respective field will be nil.
 function Table:compare(file_lines, sc_filename)
     -- Parse SC file
     local current_sheet, sc_data = U.parse_sc_file(sc_filename)
@@ -156,25 +159,95 @@ function Table:compare(file_lines, sc_filename)
     -- Compare data
     local checked_cells = {}
     local differences = {}
+    local is_different = false
 
-    -- iterate sc data
-    for cell_id, cell_details in pairs(sc_data[current_sheet]) do
-        local cell_type, is_formula, cell_content = unpack(cell_details)
-        if is_formula == false and md_data[cell_id] ~= cell_content then
-            differences[cell_id] = { cell_content, md_data[cell_id] or nil }
+    local function is_equal(cell_type, first_cell, second_cell)
+        if cell_type == "let" then
+            return tonumber(first_cell) == tonumber(second_cell)
+        else
+            return first_cell == second_cell
         end
-        checked_cells[cell_id] = true
     end
 
-    -- iterate new md data
-    for cell_id, cell_content in pairs(md_data) do
-        if checked_cells[cell_id] ~= true then
-            differences[cell_id] = { nil, cell_content }
+    -- iterate sc data
+    if sc_data ~= nil and sc_data[current_sheet] ~= nil then
+        for cell_id, cell_details in pairs(sc_data[current_sheet]) do
+            local cell_type, is_formula, cell_content = unpack(cell_details)
+            if is_formula == false and not is_equal(cell_type, md_data[cell_id], cell_content) then
+                differences[cell_id] = { cell_type, cell_content, md_data[cell_id] or nil }
+                is_different = true
+            end
+            checked_cells[cell_id] = true
+        end
+
+        -- iterate new md data
+        for cell_id, cell_content in pairs(md_data) do
+            if checked_cells[cell_id] ~= true then
+                local num = tonumber(cell_content)
+                local cell_type = "leftstring"
+                if num then
+                    cell_type = "let"
+                end
+                differences[cell_id] = { cell_type, nil, cell_content }
+                is_different = true
+            end
         end
     end
 
     -- Return differences
-    return differences
+    return is_different, differences
+end
+
+function Table:diff_to_script(differences)
+    local commands = {}
+
+    -- Iterate through all differences
+    for cell_id, diff in pairs(differences) do
+        local cell_type, sc_cell_content, md_cell_content = unpack(diff)
+
+        -- Determine the command based on the logic provided
+        local command = ""
+        if md_cell_content ~= nil then
+            -- Changes were made to md_cell or new md_cell was added
+            if cell_type == "let" then
+                -- For numerical values or formulas
+                command = string.format("LET %s = %s", cell_id, md_cell_content)
+            else
+                -- For text with specific alignment
+                command = string.format("%s %s = \"%s\"", cell_type:upper(), cell_id, md_cell_content)
+            end
+        elseif sc_cell_content ~= nil and md_cell_content == nil then
+            -- sc_cell exists but md_cell was removed or cleared
+            if cell_type == "let" then
+                -- Setting numerical cells to an empty value
+                command = string.format("LET %s = ", cell_id) -- Assuming '0' as the 'empty' state for numerical values
+            else
+                -- Setting text cells to an empty string
+                command = string.format("%s %s = \"\"", cell_type:upper(), cell_id)
+            end
+        end
+
+        -- Add the command to the list if one was generated
+        if command ~= "" then
+            table.insert(commands, command)
+        end
+    end
+
+    -- Return the list of commands
+    return table.concat(commands, "\n")
+end
+
+local function dump(o)
+    if type(o) == 'table' then
+        local s = '{ '
+        for k, v in pairs(o) do
+            if type(k) ~= 'number' then k = '"' .. k .. '"' end
+            s = s .. '[' .. k .. '] = ' .. dump(v) .. ','
+        end
+        return s .. '} '
+    else
+        return tostring(o)
+    end
 end
 
 -- Internal function to open the current table in sc-im
@@ -212,17 +285,29 @@ function Table:open_in_scim(add_link)
         sc_file_absolute:gsub('"', '\\"') ..
         '\\"\nEXECUTE \\"w! ' .. md_file:gsub('"', '\\"') .. '\\"" | sc-im --nocurses --quit_afterload'
 
+    local changes = ""
+    if self.config.update_sc_from_md then
+        local is_different, differences = self:compare(file_lines, sc_file_absolute)
+        if is_different == true then
+            print('it is different')
+            print(dump(differences))
+            changes = self:diff_to_script(differences):gsub('"', '\\"') .. '\n' .. "RECALC"
+        end
+    end
+
     if not sc_file_path and add_link then
         -- No existing .sc file link found, create it from markdown
         vim.fn.writefile(file_lines, md_file)
         local script = 'EXECUTE "load ' ..
-            md_file:gsub('"', '\\"') .. '"\nEXECUTE "w! ' .. sc_file_absolute:gsub('"', '\\"') .. '"\n'
+            md_file:gsub('"', '\\"') .. '"\nEXECUTE "w! ' .. sc_file_absolute:gsub('"', '\\"') .. '\n' .. changes
         scim_command = 'echo "' .. script:gsub('"', '\\"') .. '" | sc-im'
     else
         -- Existing .sc file link found, use it
         scim_command = 'sc-im ' .. sc_file_absolute:gsub('"', '\\"')
+        if changes ~= "" then
+            scim_command = 'echo "' .. changes .. '" | ' .. scim_command
+        end
     end
-
 
     -- local _original_bufnr = vim.api.nvim_get_current_buf()
 
