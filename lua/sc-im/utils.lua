@@ -263,7 +263,7 @@ function U.extract_sc_link(line)
     for idx, patternInfo in ipairs(sc_file_link_patterns) do
         local pattern = patternInfo[1]
         local name, file = line:match(pattern)
-        if name and file then
+        if name and file and file:match("%.sc$") then
             return name, file, idx
         end
     end

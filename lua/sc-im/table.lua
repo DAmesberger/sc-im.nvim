@@ -147,18 +147,29 @@ function Table:open_in_scim(add_link)
         add_link = self.config.include_sc_file
     end
 
-    -- If no table is found, do not proceed
+    local sc_sheet_name = nil
+    local sc_file_path = nil
+    local sc_link_fmt = nil
+
+    -- If no table is found
     if not table_top_line or not table_bottom_line then
-        --print("No table found under the cursor, creating new one.")
+        -- set defaults for a new table
         table_top_line = cursor_line
         table_bottom_line = cursor_line
+
+        -- lets first check if we find a link to a .sc file
+        sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(cursor_line - 1)
+        if sc_sheet_name and sc_file_path and sc_link_fmt then
+            table_top_line, table_bottom_line = U.find_table_boundaries(cursor_line - 1)
+            file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+        end
     else
         file_lines = U.get_table_lines(table_top_line, table_bottom_line)
+        sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
     end
 
 
     -- Check the line below the table for an .sc file link
-    local sc_sheet_name, sc_file_path, sc_link_fmt = U.get_sc_file_from_link(table_bottom_line)
 
     -- files
     local temp_file_base = vim.fn.tempname()
