@@ -1,0 +1,175 @@
+# example.yaml
+# Short example input file for autocast.
+# See full-example.yaml for all possible configuration options and explanations.
+
+settings:
+  title: autocast example
+  width: 100
+  height: 24
+  type_speed: 50ms
+
+instructions:
+  - !Interactive
+    command: nvim /tmp/demo.md
+    keys:
+      - 500ms 
+      - ":"
+      - !Str set noswapfile
+      - ^M
+
+      - " "
+      - !Str scc
+      - 100ms
+
+      - \
+      - 100ms
+      - !Str Item 
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - \
+      - 100ms
+      - !Str Quantity
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - \
+      - 100ms
+      - !Str Price
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - \
+      - 100ms
+      - !Str Total
+      - 100ms
+      - ^M
+      - "0"
+      - j
+
+      - 100ms
+      - \
+      - 100ms
+      - !Str Ice Cream
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - =
+      - 100ms
+      - !Str 2 
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - =
+      - 100ms
+      - !Str 5
+      - 100ms
+      - ^M
+      - "0"
+      - j
+
+      - 100ms
+      - \
+      - 200ms
+      - !Str Pizza
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - =
+      - 100ms
+      - !Str 1 
+      - 200ms
+      - ^M
+      - l
+
+      - 100ms
+      - =
+      - 100ms
+      - !Str 12
+      - 100ms
+      - ^M
+      - "0"
+      - j
+
+      - 100ms
+      - \
+      - 100ms
+      - !Str Chocolate
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - =
+      - 100ms
+      - !Str 5 
+      - 100ms
+      - ^M
+      - l
+
+      - 100ms
+      - =
+      - 100ms
+      - !Str 3.5
+      - 100ms
+      - ^M
+      - l
+      - k
+      - k
+
+      - =
+      - 200ms
+      - !Str "B1*C1"
+      - 200ms
+      - ^M
+      - 50ms
+      - !Str mm
+      - 50ms
+      - j
+      - 50ms
+      - !Str cm
+      - 50ms
+      - j
+      - 50ms
+      - !Str cm
+      - j
+
+      - =
+      - 200ms
+      - !Str "@sum(D1:D3)"
+      - 200ms
+      - ^M
+
+      - h
+      - \
+      - 100ms
+      - !Str SUM
+      - 100ms
+      - ^M
+      - "}"
+      - l
+
+      - 2s
+
+      - !Str :wq
+      - ^M
+
+      - 5s
+
+      - ":"
+      - w
+      - q
+      - ^M
+      - 1s

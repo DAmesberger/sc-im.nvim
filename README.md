@@ -5,7 +5,7 @@
 Its core feature is that it can generate and link the native sc-im file to the Markdown table. That allows to retain formatting and formulas upon reopening (see Options). The plugin also propagates simple changes to the Markdown table back to the sc-im table without overwriting formulas.
 
 
-![table editing](./table.svg)
+![table editing](./docs/demo.svg)
 ## Features
 
 - Create or open markdown tables in `sc-im` using a split terminal buffer (can be configured to open in a vertical or horizontal split).
