@@ -1,7 +1,10 @@
-clean:
+clean_docs:
+	rm -f docs/demo.cast docs/demo.svg
+
+clean_deps:
 	nvim --headless --clean -n -c "lua vim.fn.delete('./tests/.deps', 'rf')" +q
-	rm docs/demo.cast
-	rm docs/demo.svg
+
+clean: clean_docs clean_deps
 
 test:
 	nvim --headless --clean -u tests/test.lua "$(FILE)"
@@ -9,6 +12,7 @@ test:
 docs: docs/demo.cast docs/demo.svg
 
 docs/demo.cast: docs/demo.yaml
+	rm -f /tmp/demo.md
 	autocast docs/demo.yaml docs/demo.cast --overwrite
 
 docs/demo.svg: docs/demo.cast
