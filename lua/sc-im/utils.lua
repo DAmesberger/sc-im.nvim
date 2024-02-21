@@ -126,8 +126,35 @@ function U.parse_markdown_table(file_lines)
         if trimmed_line and not trimmed_line:match("^[-:| ]+$") then
             local col_index = 1
             local col_letter = ""
+            local last_pipe = 0
             -- Split the trimmed line at each pipe
-            for content in string.gmatch(trimmed_line, "([^|]+)") do
+            for i = 1, #trimmed_line do
+                if trimmed_line:sub(i, i) == '|' then
+                    local content = trimmed_line:sub(last_pipe + 1, i - 1)
+                    col_letter = ""
+                    local n = col_index
+                    repeat
+                        n = n - 1
+                        local remainder = n % 26
+                        col_letter = string.char(65 + remainder) .. col_letter
+                        n = (n - remainder) / 26
+                    until n == 0
+
+                    local cell_id = col_letter .. tostring(row_number)
+                    -- Trim the content to remove extra spaces
+                    content = content:match("^%s*(.-)%s*$")
+                    -- make it nil if empty
+                    if content == "" then
+                        content = nil
+                    end
+                    md_data[cell_id] = content
+                    col_index = col_index + 1
+                    last_pipe = i
+                end
+            end
+            -- Process the last cell in the row
+            if last_pipe < #trimmed_line then
+                local content = trimmed_line:sub(last_pipe + 1)
                 col_letter = ""
                 local n = col_index
                 repeat
@@ -141,7 +168,6 @@ function U.parse_markdown_table(file_lines)
                 -- Trim the content to remove extra spaces
                 content = content:match("^%s*(.-)%s*$")
                 md_data[cell_id] = content
-                col_index = col_index + 1
             end
             row_number = row_number + 1 -- Increment row_number for each data row
         end
@@ -255,7 +281,7 @@ function U.parse_sc_file(sc_filename)
 
         if cell_type and cell_id and content then
             local is_formula = false
-            if cell_type == "let" and string.sub(content, 1, 1) == "@" then
+            if cell_type == "let" and tonumber(content) == nil then
                 is_formula = true
             end
             sc_data[current_sheet][cell_id] = { cell_type, is_formula, content }
