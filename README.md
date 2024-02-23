@@ -8,9 +8,12 @@ Its core feature is that it can generate and link the native sc-im file to the M
 ![table editing](./docs/demo.svg)
 ## Features
 
-- Create or open markdown tables in `sc-im` using a split terminal buffer (can be configured to open in a vertical or horizontal split).
-- Optionally generates and links the `.sc` file (native sc-im file format) so that formatting and formulas are retained below the table in the markdown file.
-
+- Create or open markdown tables in `sc-im` using a floating or split terminal buffer
+- Generates and links the `.sc` file (native sc-im file format) so that formatting and formulas are retained.
+- Compare markdown table with linked sc-im file and pushes updates to sc-im when opening the table
+- Show change list in split buffer
+- Update Markdown table using the formulas in the sc-im file
+- Rename generated sc-im file
 
 ## Installation
 
@@ -112,7 +115,6 @@ require('sc-im').setup({
     }
 })
 ```
-
 
 ## Functions 
 

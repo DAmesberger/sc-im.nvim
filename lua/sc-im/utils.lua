@@ -1,7 +1,5 @@
 local U = {}
 
-local unpack = table.unpack or unpack
-
 local A = vim.api
 
 local sc_file_link_patterns = {
@@ -118,19 +116,22 @@ end
 
 function U.parse_markdown_table(file_lines)
     local md_data = {}
-    local row_number = 0 -- Initialize row_number
+    local line_number = 0 -- Initialize line_number to track the current line
 
-    for _, line in ipairs(file_lines) do
-        -- Trim leading and trailing pipes and spaces
-        local trimmed_line = line:match("^|%s*(.-)%s*|$")
-        if trimmed_line and not trimmed_line:match("^[-:| ]+$") then
+    for j, line in ipairs(file_lines) do
+        -- Skip the second line, assuming it's the formatting line
+        if j ~= 2 and string.match(line, "|.*|$") then
             local col_index = 1
             local col_letter = ""
-            local last_pipe = 0
-            -- Split the trimmed line at each pipe
-            for i = 1, #trimmed_line do
-                if trimmed_line:sub(i, i) == '|' then
-                    local content = trimmed_line:sub(last_pipe + 1, i - 1)
+            local last_pipe = 1                             -- Start after the first pipe of the original line
+
+            for i = 2, #line do                             -- Start from the second character to skip initial pipe
+                if line:sub(i, i) == '|' or i == #line then -- Check for pipe or end of line
+                    local end_position = i - 1
+                    local content_segment = line:sub(last_pipe + 1, i - 1)
+                    local content = content_segment:match("^%s*(.-)%s*$") -- Trim spaces
+
+                    -- Convert column index to letter for cell ID
                     col_letter = ""
                     local n = col_index
                     repeat
@@ -140,36 +141,22 @@ function U.parse_markdown_table(file_lines)
                         n = (n - remainder) / 26
                     until n == 0
 
-                    local cell_id = col_letter .. tostring(row_number)
-                    -- Trim the content to remove extra spaces
-                    content = content:match("^%s*(.-)%s*$")
-                    -- make it nil if empty
-                    if content == "" then
-                        content = nil
-                    end
-                    md_data[cell_id] = content
+                    local cell_id = col_letter ..
+                        tostring(line_number)
+
+                    -- Add to md_data, set content as nil if the cell is visually empty
+                    md_data[cell_id] = {
+                        content = (content ~= "" and content or nil),
+                        start = last_pipe + 1,
+                        ["end"] =
+                            end_position
+                    }
+
                     col_index = col_index + 1
-                    last_pipe = i
+                    last_pipe = i -- Move past the pipe position for next cell start
                 end
             end
-            -- Process the last cell in the row
-            if last_pipe < #trimmed_line then
-                local content = trimmed_line:sub(last_pipe + 1)
-                col_letter = ""
-                local n = col_index
-                repeat
-                    n = n - 1
-                    local remainder = n % 26
-                    col_letter = string.char(65 + remainder) .. col_letter
-                    n = (n - remainder) / 26
-                until n == 0
-
-                local cell_id = col_letter .. tostring(row_number)
-                -- Trim the content to remove extra spaces
-                content = content:match("^%s*(.-)%s*$")
-                md_data[cell_id] = content
-            end
-            row_number = row_number + 1 -- Increment row_number for each data row
+            line_number = line_number + 1 -- Increment line number at the start of the loop
         end
     end
 
@@ -273,7 +260,6 @@ function U.parse_sc_file(sc_filename)
             if not sc_data[current_sheet] then
                 sc_data[current_sheet] = {}
             end
-            sc_data[""] = sheetname
         end
 
         --local cell_type, cell_id, content = string.match(line, "(%w+) (%w+) = \"([^\"]*)\"")
@@ -284,7 +270,7 @@ function U.parse_sc_file(sc_filename)
             if cell_type == "let" and tonumber(content) == nil then
                 is_formula = true
             end
-            sc_data[current_sheet][cell_id] = { cell_type, is_formula, content }
+            sc_data[current_sheet][cell_id] = { type = cell_type, is_formula = is_formula, content = content }
         end
     end
     sc_file:close()
@@ -420,31 +406,41 @@ function U.compare(file_lines, sc_filename)
         if cell_type == "let" then
             return tonumber(first_cell) == tonumber(second_cell)
         else
-            return first_cell == second_cell
+            if first_cell == nil and second_cell == nil then
+                return true
+            else
+                return first_cell == second_cell
+            end
         end
     end
 
     -- iterate sc data
     if sc_data ~= nil and sc_data[current_sheet] ~= nil then
-        for cell_id, cell_details in pairs(sc_data[current_sheet]) do
-            local cell_type, is_formula, cell_content = unpack(cell_details)
-            if is_formula == false and not is_equal(cell_type, md_data[cell_id], cell_content) then
-                differences[cell_id] = { cell_type, cell_content, md_data[cell_id] or nil }
+        for cell_id, cell in pairs(sc_data[current_sheet]) do
+            if cell.is_formula == false and not is_equal(cell.type, md_data[cell_id].content, cell.content) then
+                differences[cell_id] = {
+                    type = cell.type,
+                    sc_content = cell.content,
+                    md_content = md_data[cell_id]
+                        .content or nil
+                }
                 is_different = true
             end
             checked_cells[cell_id] = true
         end
 
         -- iterate new md data
-        for cell_id, cell_content in pairs(md_data) do
+        for cell_id, cell_info in pairs(md_data) do
             if checked_cells[cell_id] ~= true then
-                local num = tonumber(cell_content)
+                local num = tonumber(cell_info.content)
                 local cell_type = "leftstring"
                 if num then
                     cell_type = "let"
                 end
-                differences[cell_id] = { cell_type, nil, cell_content }
-                is_different = true
+                if cell_info.content ~= nil then -- if both are nil it is not a difference
+                    differences[cell_id] = { type = cell_type, sc_content = nil, md_content = cell_info.content }
+                    is_different = true
+                end
             end
         end
     end
@@ -458,27 +454,25 @@ function U.diff_to_script(differences)
 
     -- Iterate through all differences
     for cell_id, diff in pairs(differences) do
-        local cell_type, sc_cell_content, md_cell_content = unpack(diff)
-
         -- Determine the command based on the logic provided
         local command = ""
-        if md_cell_content ~= nil then
+        if diff.md_content ~= nil then
             -- Changes were made to md_cell or new md_cell was added
-            if cell_type == "let" then
+            if diff.type == "let" then
                 -- For numerical values or formulas
-                command = string.format("LET %s = %s", cell_id, md_cell_content)
+                command = string.format("LET %s = %s", cell_id, diff.md_content)
             else
                 -- For text with specific alignment
-                command = string.format("%s %s = \"%s\"", cell_type:upper(), cell_id, md_cell_content)
+                command = string.format("%s %s = \"%s\"", diff.type:upper(), cell_id, diff.md_content)
             end
-        elseif sc_cell_content ~= nil and md_cell_content == nil then
+        elseif diff.sc_content ~= nil and diff.md_content == nil then
             -- sc_cell exists but md_cell was removed or cleared
-            if cell_type == "let" then
+            if diff.type == "let" then
                 -- Setting numerical cells to an empty value
                 command = string.format("LET %s = ", cell_id) -- Assuming '0' as the 'empty' state for numerical values
             else
                 -- Setting text cells to an empty string
-                command = string.format("%s %s = \"\"", cell_type:upper(), cell_id)
+                command = string.format("%s %s = \"\"", diff.type:upper(), cell_id)
             end
         end
 
@@ -490,6 +484,22 @@ function U.diff_to_script(differences)
 
     -- Return the list of commands
     return table.concat(commands, "\n")
+end
+
+function U.dump(o, indentLevel)
+    indentLevel = indentLevel or 0                 -- Set default indent level if none is provided
+    local indent = string.rep("    ", indentLevel) -- Define the indentation (4 spaces in this example)
+
+    if type(o) == 'table' then
+        local s = '{\n' -- Start with a new line after opening brace
+        for k, v in pairs(o) do
+            local key = type(k) == 'number' and '[' .. k .. ']' or '["' .. k .. '"]'
+            s = s .. indent .. '    ' .. key .. ' = ' .. U.dump(v, indentLevel + 1) .. ',\n'
+        end
+        return s .. indent .. '}'
+    else
+        return tostring(o)
+    end
 end
 
 return U

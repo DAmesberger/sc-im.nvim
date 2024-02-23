@@ -279,6 +279,53 @@ function Table:rename_table_file(new_name)
     end
 end
 
+function Table:show_changes()
+    local table_found, table_top_line, table_bottom_line, file_lines,
+    sc_sheet_name, sc_file_path, sc_link_fmt = U.get_table_under_cursor()
+
+    -- If no table is found, do not proceed
+    if not table_found then
+        vim.notify("No table found under the cursor.", vim.log.levels.INFO)
+        return
+    end
+
+    if not sc_sheet_name or not sc_file_path or not sc_link_fmt then
+        vim.notify("No .sc file link found.", vim.log.levels.INFO)
+        return
+    end
+
+    local is_different, differences = U.compare(file_lines, sc_file_path)
+
+    -- Proceed only if there are differences
+    if is_different then
+        -- Create a new buffer for the differences
+        vim.cmd('new')                               -- Opens a new split window
+        local bufnr = vim.api.nvim_get_current_buf() -- Get the new buffer's number
+
+        -- Prepare the content for the new buffer
+        local diff_content = {}
+        for cell_id, diff in pairs(differences) do
+            local sc_cell_content = diff.sc_content or 'nil' -- Handle nil values
+            local md_cell_content = diff.md_content or 'nil' -- Handle nil values
+            table.insert(diff_content, string.format("%s: %s -> %s", cell_id, sc_cell_content, md_cell_content))
+        end
+
+        -- Set the content of the new buffer
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, diff_content)
+
+        -- Set the buffer to read-only and no modifications allowed
+        vim.api.nvim_buf_set_option(bufnr, 'modifiable', false)
+        vim.api.nvim_buf_set_option(bufnr, 'buftype', 'nofile') -- Avoids writing the buffer to a file
+        vim.api.nvim_buf_set_option(bufnr, 'bufhidden', 'wipe') -- Buffer is deleted when window is closed
+        vim.api.nvim_win_set_option(0, 'wrap', false)           -- Disable line wrapping
+
+        -- Optionally, set the buffer's name to something meaningful
+        vim.api.nvim_buf_set_name(bufnr, 'Differences')
+    else
+        vim.notify("No differences found.", vim.log.levels.INFO)
+    end
+end
+
 function Table:update_table(save_sc)
     local table_found, table_top_line, table_bottom_line, file_lines,
     sc_sheet_name, sc_file_path, sc_link_fmt = U.get_table_under_cursor()

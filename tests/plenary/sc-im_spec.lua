@@ -89,31 +89,43 @@ describe("compare", function()
         return lines
     end
 
-    local function dump(o)
-        if type(o) == 'table' then
-            local s = '{ '
-            for k, v in pairs(o) do
-                if type(k) ~= 'number' then k = '"' .. k .. '"' end
-                s = s .. '[' .. k .. '] = ' .. dump(v) .. ','
-            end
-            return s .. '} '
-        else
-            return tostring(o)
-        end
-    end
-
     it("compare text", function()
         local lines = lines_from("tests/data/test1.md")
-        local result = t:compare(lines, "tests/data/test1.sc")
-        -- print(dump(result))
+        local table_lines = U.get
+        local is_different, result = U.compare(lines, "tests/data/test1.sc")
 
-        assert.are.same(result["A2"][1], "test 3")
-        assert.are.same(result["A2"][2], "test 3a")
+        assert.are.same(is_different, true)
 
-        assert.are.same(result["A4"][1], nil)
-        assert.are.same(result["A4"][2], "new line")
+        assert.are.same(result["A2"].sc_content, "test 3")
+        assert.are.same(result["A2"].md_content, "test 3a")
 
-        assert.are.same(result["B4"][1], nil)
-        assert.are.same(result["B4"][2], "")
+        assert.are.same(result["A4"].sc_content, nil)
+        assert.are.same(result["A4"].md_content, "new line")
+
+        assert.are.same(result["B4"].sc_content, nil)
+        assert.are.same(result["B4"].md_content, nil)
+    end)
+end)
+
+describe("table parsing", function()
+    it("parse markdown table", function()
+        local lines = {
+            "| Header1 | Header2 |",
+            "|---------|---------|",
+            "| Row1    | Data1   |",
+            "| Row2    | Data2   |",
+            "|         | Data3   |",
+        }
+
+        local md_data = U.parse_markdown_table(lines)
+
+        assert.are.same({ content = 'Header1', start = 2, ["end"] = 10 }, md_data['A0'])
+        assert.are.same({ content = 'Header2', start = 12, ["end"] = 20 }, md_data['B0'])
+        assert.are.same({ content = 'Row1', start = 2, ["end"] = 10 }, md_data['A1'])
+        assert.are.same({ content = 'Data1', start = 12, ["end"] = 20 }, md_data['B1'])
+        assert.are.same({ content = 'Row2', start = 2, ["end"] = 10 }, md_data['A2'])
+        assert.are.same({ content = 'Data2', start = 12, ["end"] = 20 }, md_data['B2'])
+        assert.are.same({ content = nil, start = 2, ["end"] = 10 }, md_data['A3'])
+        assert.are.same({ content = 'Data3', start = 12, ["end"] = 20 }, md_data['B3'])
     end)
 end)
