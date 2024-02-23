@@ -7,7 +7,7 @@ local function find_next_table_start_async(start_line, max_lines)
     local end_line = math.min(start_line + max_lines - 1, num_lines)
     for line = start_line, end_line do
         local current_line = vim.api.nvim_buf_get_lines(0, line - 1, line, false)[1]
-        if current_line:match(current_line, "|.*|$") then
+        if current_line:match("|.*|$") then
             return line
         end
     end
@@ -31,16 +31,27 @@ end
 
 -- Function to process and highlight the table range asynchronously
 local function process_and_highlight_table_range(start_line, end_line)
-    -- Perform custom processing and highlighting for the table range
-    for line = start_line, end_line do
-        -- Highlight the line asynchronously
-        vim.schedule(function()
-            if line == start_line then
-                vim.api.nvim_buf_add_highlight(0, -1, 'MarkdownTableHeader', line - 1, 0, -1)
-            else
+    local table_lines = U.get_table_lines(start_line, end_line)
+    local table_line = 0
+
+    for i, line in ipairs(table_lines) do
+        if i == 2 then
+            -- formatting line
+            vim.schedule(function()
                 vim.api.nvim_buf_add_highlight(0, -1, 'MarkdownTableGrid', line - 1, 0, -1)
-            end
-        end)
+            end)
+        else
+            table_line = table_line + 1
+            local cells = U.parse_markdown_table_line(table_line, line)
+            -- Highlight the line asynchronously
+            vim.schedule(function()
+                if line == start_line then
+                    vim.api.nvim_buf_add_highlight(0, -1, 'MarkdownTableHeader', line - 1, 0, -1)
+                else
+                    vim.api.nvim_buf_add_highlight(0, -1, 'MarkdownTableGrid', line - 1, 0, -1)
+                end
+            end)
+        end
     end
 end
 

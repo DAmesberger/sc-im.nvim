@@ -114,6 +114,48 @@ function U.get_table_lines(table_top_line, table_bottom_line)
     return table_lines
 end
 
+function U.parse_markdown_table_line(line_number, line)
+    local col_index = 1
+    local col_letter = ""
+    local last_pipe = 1 -- Start after the first pipe of the original line
+    local cells = {}
+
+    for i = 2, #line do                             -- Start from the second character to skip initial pipe
+        if line:sub(i, i) == '|' or i == #line then -- Check for pipe or end of line
+            local end_position = i - 1
+            local content_segment = line:sub(last_pipe + 1, i - 1)
+            local content = content_segment:match("^%s*(.-)%s*$") -- Trim spaces
+
+            -- Convert column index to letter for cell ID
+            col_letter = ""
+            local n = col_index
+            repeat
+                n = n - 1
+                local remainder = n % 26
+                col_letter = string.char(65 + remainder) .. col_letter
+                n = (n - remainder) / 26
+            until n == 0
+
+            local cell_id = col_letter ..
+                tostring(line_number)
+
+            -- Add to md_data, set content as nil if the cell is visually empty
+            table.insert(cells,
+                {
+                    cell_id = cell_id,
+                    content = (content ~= "" and content or nil),
+                    start = last_pipe + 1,
+                    ["end"] =
+                        end_position
+                })
+
+            col_index = col_index + 1
+            last_pipe = i -- Move past the pipe position for next cell start
+        end
+    end
+    return cells
+end
+
 function U.parse_markdown_table(file_lines)
     local md_data = {}
     local line_number = 0 -- Initialize line_number to track the current line
@@ -121,40 +163,9 @@ function U.parse_markdown_table(file_lines)
     for j, line in ipairs(file_lines) do
         -- Skip the second line, assuming it's the formatting line
         if j ~= 2 and string.match(line, "|.*|$") then
-            local col_index = 1
-            local col_letter = ""
-            local last_pipe = 1                             -- Start after the first pipe of the original line
-
-            for i = 2, #line do                             -- Start from the second character to skip initial pipe
-                if line:sub(i, i) == '|' or i == #line then -- Check for pipe or end of line
-                    local end_position = i - 1
-                    local content_segment = line:sub(last_pipe + 1, i - 1)
-                    local content = content_segment:match("^%s*(.-)%s*$") -- Trim spaces
-
-                    -- Convert column index to letter for cell ID
-                    col_letter = ""
-                    local n = col_index
-                    repeat
-                        n = n - 1
-                        local remainder = n % 26
-                        col_letter = string.char(65 + remainder) .. col_letter
-                        n = (n - remainder) / 26
-                    until n == 0
-
-                    local cell_id = col_letter ..
-                        tostring(line_number)
-
-                    -- Add to md_data, set content as nil if the cell is visually empty
-                    md_data[cell_id] = {
-                        content = (content ~= "" and content or nil),
-                        start = last_pipe + 1,
-                        ["end"] =
-                            end_position
-                    }
-
-                    col_index = col_index + 1
-                    last_pipe = i -- Move past the pipe position for next cell start
-                end
+            local cells = U.parse_markdown_table_line(line_number, line)
+            for _, cell in ipairs(cells) do
+                md_data[cell.cell_id] = { content = cell.content }
             end
             line_number = line_number + 1 -- Increment line number at the start of the loop
         end
