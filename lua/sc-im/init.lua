@@ -60,15 +60,15 @@ end
 
 -- Define colors for Markdown table syntax highlighting by linking to theme highlight groups or using fallbacks
 -- Header
-link_to_theme("MarkdownTableHeader", "Normal", "#ffff00")        -- Yellow as default
+link_to_theme("MarkdownTableHeader", "Normal", "#ffff00")          -- Yellow as default
 -- Text Cell
-link_to_theme("MarkdownTableCell", "Normal", "#ffffff")          -- White as default
+link_to_theme("MarkdownTableCell", "string", "#ffffff")            -- White as default
 -- Number Cell
-link_to_theme("MarkdownTableNumberCell", "Number", "#00ff00")    -- Green as default
+link_to_theme("MarkdownTableNumberCell", "number", "#ff0000")      -- Green as default
 -- Formula Cell
-link_to_theme("MarkdownTableFormulaCell", "Function", "#ff0000") -- Red as default
+link_to_theme("MarkdownTableFormulaCell", "identifier", "#00ff00") -- Red as default
 -- Grid
-link_to_theme("MarkdownTableGrid", "CursorLine", "#444444")      -- Dark gray as default
+link_to_theme("MarkdownTableGrid", "string", "#666666")            -- Dark gray as default
 
 -- Hook into BufEnter and BufWritePost events to update highlighting and continue parsing
 -- vim.api.nvim_exec([[

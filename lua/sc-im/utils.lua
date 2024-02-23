@@ -144,8 +144,8 @@ function U.parse_markdown_table_line(line_number, line)
                 {
                     cell_id = cell_id,
                     content = (content ~= "" and content or nil),
-                    start = last_pipe + 1,
-                    ["end"] =
+                    startcol = last_pipe + 1,
+                    endcol =
                         end_position
                 })
 
@@ -457,7 +457,7 @@ function U.compare(file_lines, sc_filename)
     end
 
     -- Return differences
-    return is_different, differences
+    return is_different, differences, sc_data
 end
 
 function U.diff_to_script(differences)
