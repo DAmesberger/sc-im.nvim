@@ -1,6 +1,6 @@
 local A = vim.api
 local U = require('sc-im.utils')
-
+local H = require('sc-im.highlighter')
 
 --
 ---@alias WinId number Floating Window's ID
@@ -38,6 +38,9 @@ local defaults = {
         border = 'single',
         hl = 'Normal',
         blend = 0
+    },
+    highlight = {
+        enabled = false,
     }
 }
 
@@ -89,6 +92,15 @@ function Table:setup(cfg)
         self.config.link_fmt = 1
     end
 
+    if self.config.highlight.enabled then
+        require('sc-im.highlighter').init(cfg)
+        vim.notify('hightlight is experimental and SLOW!', vim.log.levels.WARN)
+    else
+        vim.notify('hightlight is off!', vim.log.levels.WARN)
+        vim.notify(U.dump(cfg), vim.log.levels.WARN)
+    end
+
+
     return self
 end
 
@@ -128,7 +140,8 @@ function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_co
         link_fmt = self.config.link_fmt
     end
 
-    local current_sheet, _ = U.get_sheets(sc_file_absolute)
+    -- set sc data to cache and get the current sheet
+    local _, current_sheet = U.get_sc_data(sc_file_absolute, nil, true)
 
     -- If .sc file should be included, handle the .sc file link
     if add_link then
@@ -163,7 +176,8 @@ function Table:open_in_scim(add_link)
     end
 
     if self.config.update_sc_from_md and file_lines and sc_file_absolute then
-        local is_different, differences = U.compare(file_lines, sc_file_absolute)
+        local sc_data, current_sheet = U.get_sc_data(sc_file_absolute, nil, true)
+        local is_different, differences = U.compare(file_lines, sc_data)
         if is_different == true then
             script = script .. U.diff_to_script(differences) .. '\n' .. "RECALC"
         end
@@ -217,6 +231,7 @@ function Table:open_in_scim(add_link)
     vim.fn.termopen(scim_command, {
         on_exit = function()
             -- Run the scim_command and get its output (if needed)
+
             local md_lines = U.sc_to_md(sc_file_absolute)
 
             self.win = nil
@@ -294,7 +309,8 @@ function Table:show_changes()
         return
     end
 
-    local is_different, differences = U.compare(file_lines, sc_file_path)
+    local sc_data, current_sheet = U.get_sc_data(sc_file_path, nil, true)
+    local is_different, differences = U.compare(file_lines, sc_data)
 
     -- Proceed only if there are differences
     if is_different then
@@ -341,7 +357,8 @@ function Table:update_table(save_sc)
         return
     end
 
-    local is_different, differences = U.compare(file_lines, sc_file_path)
+    local sc_data, current_sheet = U.get_sc_data(sc_file_path, nil, true)
+    local is_different, differences = U.compare(file_lines, sc_data)
     local script = "RECALC"
 
     if save_sc then
@@ -372,6 +389,14 @@ function Table:close()
     end
     if self.buf and vim.api.nvim_buf_is_loaded(self.buf) then
         A.nvim_buf_delete(self.buf, { force = true })
+    end
+end
+
+function Table:update_highlighting()
+    if self.config.highlight.enabled then
+        H.update_highlighting_with_range(1, 100)
+    else
+        return vim.notify('Highlighting is not enabled in config', vim.log.levels.WARN)
     end
 end
 

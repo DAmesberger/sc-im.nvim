@@ -174,6 +174,50 @@ function U.parse_markdown_table(file_lines)
     return md_data
 end
 
+-- Function to set cache for the current buffer
+function U.set_sc_data(sc_file, sc_sheet, sc_data)
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    local _, cache = pcall(vim.api.nvim_buf_get_var, bufnr, 'sc_im_cache')
+    cache = {
+        sc_data = {
+            [sc_file] = {
+                [sc_sheet] = sc_data
+            }
+        }
+    }
+    vim.api.nvim_buf_set_var(bufnr, 'sc_im_cache', cache)
+end
+
+-- Function to get sc data from cache or read from file
+-- if sc_sheet is nil, force_read needs to be true and current sheet is used
+function U.get_sc_data(sc_file, sc_sheet, force_read)
+    local cache = nil
+
+    if force_read ~= true then
+        local bufnr = vim.api.nvim_get_current_buf()
+        local status, cache = pcall(vim.api.nvim_buf_get_var, bufnr, 'sc_im_cache')
+        if sc_sheet == nil then
+            return vim.notify("Error: sc_sheet is nil and force_read is not true", vim.log.levels.ERROR)
+        end
+    end
+
+    local sc_data = nil
+    if status and cache and cache.sc_data and cache.sc_data[sc_file] then
+        sc_data = cache.sc_data[sc_file][sc_sheet]
+    else
+        local current_sheet, full_sc_data = U.parse_sc_file(U.make_absolute_path(sc_file))
+        if sc_sheet == nil then
+            sc_sheet = current_sheet
+        end
+        if full_sc_data and full_sc_data[sc_sheet] ~= nil then
+            sc_data = full_sc_data[sc_sheet]
+            U.set_sc_data(sc_file, sc_sheet, sc_data)
+        end
+    end
+    return sc_data, sc_sheet
+end
+
 function U.get_sheets(sc_filename)
     local sc_file = io.open(sc_filename, "r")
     local sheet_names = {}
@@ -401,10 +445,7 @@ end
 --  @param sc_filename string The name of the .sc file
 --  @return table[] Differences between the current table and the .sc file { cell_id, sc_cell, md_cell }
 -- @return table A table of differences between the current table and the .sc file, indexed by cell_id, each value is a table containing { cell_type, sc_cell_content, md_cell_content }, where `cell_type` is the type of the cell from the .sc file, `sc_cell_content` is the content from the .sc file, and `md_cell_content` is the content from the Markdown table. If there is no corresponding cell in the .sc or Markdown data, the respective field will be nil.
-function U.compare(file_lines, sc_filename)
-    -- Parse SC file
-    local current_sheet, sc_data = U.parse_sc_file(U.make_absolute_path(sc_filename))
-
+function U.compare(file_lines, sc_data)
     -- Parse Markdown table
     local md_data = U.parse_markdown_table(file_lines)
 
@@ -426,8 +467,8 @@ function U.compare(file_lines, sc_filename)
     end
 
     -- iterate sc data
-    if sc_data ~= nil and sc_data[current_sheet] ~= nil then
-        for cell_id, cell in pairs(sc_data[current_sheet]) do
+    if sc_data ~= nil then
+        for cell_id, cell in pairs(sc_data) do
             if cell.is_formula == false and not is_equal(cell.type, md_data[cell_id].content, cell.content) then
                 differences[cell_id] = {
                     type = cell.type,
@@ -457,7 +498,7 @@ function U.compare(file_lines, sc_filename)
     end
 
     -- Return differences
-    return is_different, differences, sc_data
+    return is_different, differences
 end
 
 function U.diff_to_script(differences)

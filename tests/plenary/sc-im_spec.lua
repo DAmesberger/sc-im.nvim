@@ -92,7 +92,9 @@ describe("compare", function()
     it("compare text", function()
         local lines = lines_from("tests/data/test1.md")
         local table_lines = U.get
-        local is_different, result = U.compare(lines, "tests/data/test1.sc")
+
+        local current_sheet, sc_data = U.parse_sc_file(U.make_absolute_path("tests/data/test1.sc"))
+        local is_different, result = U.compare(lines, sc_data)
 
         assert.are.same(is_different, true)
 
