@@ -148,6 +148,11 @@ function Table:read_from_scim(table_top_line, table_bottom_line, add_link, md_co
         local sc_link_line = table_top_line - 1 + #md_content
         U.insert_sc_link(sc_link_line, current_sheet, sc_file, link_fmt)
     end
+    --
+    -- update highlighting
+    if self.config.highlight.enabled then
+        H.update_highlighting_with_range(table_top_line)
+    end
 end
 
 -- Internal function to open the current table in sc-im
@@ -379,6 +384,10 @@ function Table:update_table(save_sc)
     --
     -- Replace the old table content in the buffer, excluding the .sc file link
     A.nvim_buf_set_lines(0, table_top_line - 1, table_bottom_line, false, md_content)
+
+    if self.config.highlight.enabled then
+        H.update_highlighting_with_range(table_top_line)
+    end
 end
 
 function Table:close()
@@ -397,6 +406,19 @@ function Table:update_highlighting()
         H.update_highlighting_with_range(1, 100)
     else
         return vim.notify('Highlighting is not enabled in config', vim.log.levels.WARN)
+    end
+end
+
+-- Lua function to select inside a cell
+function Table:select_inside_cell()
+    local cell = U.get_cell_under_cursor()                                         -- Assuming this function exists and works correctly
+    if cell then
+        local start_pos = { vim.api.nvim_win_get_cursor(0)[1], cell.startcol - 1 } -- Adjust for 0-index
+        local end_pos = { vim.api.nvim_win_get_cursor(0)[1], cell.endcol - 1 }     -- Adjust for 0-index and inclusion
+        -- Set start and end of selection for 'visual' mode
+        vim.api.nvim_win_set_cursor(0, start_pos)
+        vim.cmd('normal! v')
+        vim.api.nvim_win_set_cursor(0, end_pos)
     end
 end
 

@@ -156,6 +156,73 @@ function U.parse_markdown_table_line(line_number, line)
     return cells
 end
 
+function U.find_table_start_offset()
+    local bufnr = A.nvim_get_current_buf()
+    local current_line_num = A.nvim_win_get_cursor(0)[1] - 1 -- Lua is 1-indexed, Vim is 0-indexed
+    local is_within_table = false
+
+    -- First, check if the current line could be a part of a table
+    local current_line = A.nvim_buf_get_lines(bufnr, current_line_num, current_line_num + 1, false)[1]
+    if not string.match(current_line, "|.*|$") then
+        return nil -- Current line is not a table line
+    end
+
+    -- Now, search upwards from the current line
+    while current_line_num >= 0 do
+        local line = A.nvim_buf_get_lines(bufnr, current_line_num, current_line_num + 1, false)[1]
+
+        -- Quick check: If the line is potentially part of a table
+        if string.find(line, '|') then
+            -- Detailed check for the separator (adjust according to your table format)
+            if string.match(line, "|.*|$") then
+                -- Found the separator line, ensure the header exists above
+                if current_line_num > 0 then
+                    local header_line = A.nvim_buf_get_lines(bufnr, current_line_num - 1, current_line_num, false)
+                        [1]
+                    if string.find(header_line, '|') then
+                        is_within_table = true      -- The current position is indeed within a table
+                        return current_line_num - 1 -- Return the header line number
+                    end
+                end
+            end
+        end
+        current_line_num = current_line_num - 1
+    end
+
+    -- If the function hasn't returned by now, check if it's because we're within a table
+    if is_within_table then
+        return current_line_num -- Return the current line number if it is within a table
+    else
+        return nil              -- Return nil if not within a table
+    end
+end
+
+function U.get_cell_under_cursor()
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    local cursor_position = vim.api.nvim_win_get_cursor(0) -- Get current cursor position
+    local line = cursor_position[1]                        -- Line number
+    local col = cursor_position[2]                         -- Column number
+
+    local current_line = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, true)[1]
+
+    local table_start = U.find_table_start_offset()
+    if table_start then
+        if table_start > 0 then
+            table_start = table_start - 1 -- ignore the formatting line
+        end
+        local cells = U.parse_markdown_table_line(table_start, current_line)
+        if cells then
+            for _, cell in ipairs(cells) do
+                if col >= cell.startcol - 1 and col <= cell.endcol - 1 then
+                    return cell
+                end
+            end
+        end
+    end
+    return nil
+end
+
 function U.parse_markdown_table(file_lines)
     local md_data = {}
     local line_number = 0 -- Initialize line_number to track the current line

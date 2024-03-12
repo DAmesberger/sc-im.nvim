@@ -5,7 +5,7 @@ local U = require('sc-im.utils')
 -- Function to link custom highlight groups to theme highlight groups dynamically
 local function link_to_theme(group_name, theme_group_name, fallback_color)
     local status, hl = pcall(vim.api.nvim_get_hl_by_name, theme_group_name, true)
-    if hl.foreground ~= nil and status == true then
+    if hl.foreground ~= nil and status then
         vim.cmd(string.format("hi! link %s %s", group_name, theme_group_name))
     else
         -- If the theme highlight group doesn't exist or doesn't define a foreground color, use fallback or defaults
@@ -134,6 +134,9 @@ end
 
 -- Function to asynchronously update highlighting and continue parsing tables
 function H.update_highlighting_with_range(start_line, max_lines)
+    if not max_lines then
+        max_lines = 100
+    end
     -- Find the start of the next table asynchronously
     local next_table_start_line = find_next_table_start_async(start_line, max_lines)
     if next_table_start_line then

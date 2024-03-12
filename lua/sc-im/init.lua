@@ -10,6 +10,11 @@ local t = Table:new()
 ---@param cfg Config
 function M.setup(cfg)
     t:setup(cfg)
+
+    -- Define a globally accessible function
+    function _G.select_inside_cell()
+        t:select_inside_cell()
+    end
 end
 
 ---Opens table under the cursor in sc-im
@@ -33,6 +38,10 @@ end
 
 function M.show_changes()
     t:show_changes()
+end
+
+function M.select_inside_cell()
+    t:select_inside_cell()
 end
 
 --- closes floating sc-im

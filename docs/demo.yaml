@@ -3,7 +3,7 @@
 # See full-example.yaml for all possible configuration options and explanations.
 
 settings:
-  title: autocast example
+  title: sc-im create table
   width: 100
   height: 24
   type_speed: 50ms
