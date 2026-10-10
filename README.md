@@ -56,6 +56,34 @@ cd ~/.config/nvim/bundle
 git clone https://github.com/DAmesberger/sc-im.nvim.git
 ```
 
+### Using [lazy.nvim](https://github.com/folke/lazy.nvim)
+
+```lua
+return {
+  -- installation
+  "DAmesberger/sc-im.nvim",
+  enabled = true,
+
+  -- configuration
+  opts = {
+    ft = 'scim',
+    include_sc_file = true,
+    update_sc_from_md = true,
+    link_fmt = 1,
+    split = "floating",
+    float_config = {
+      height = 0.9,
+      width = 0.9,
+      style = 'minimal',
+      border = 'single',
+      hl = 'Normal',
+      blend = 0
+    }
+  },
+
+}
+```
+
 ## Configuration
 
 `sc-im.nvim` can be configured in your `init.vim` or Lua configuration file. Here is an example:
